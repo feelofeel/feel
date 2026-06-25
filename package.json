@@ -1,0 +1,44 @@
+{
+  "name": "@feelofeel/feel",
+  "version": "0.1.0",
+  "description": "FEEL — Documentation operating system for projects",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/feelofeel/feel.git"
+  },
+  "keywords": [
+    "documentation",
+    "yaml-frontmatter",
+    "knowledge-management",
+    "ai-agent",
+    "docs-as-code"
+  ],
+  "homepage": "https://github.com/feelofeel/feel",
+  "bugs": {
+    "url": "https://github.com/feelofeel/feel/issues"
+  },
+  "main": "docs/conventions/feel.md",
+  "exports": {
+    ".": "./docs/conventions/feel.md",
+    "./adoption": "./docs/conventions/feel-adoption.md",
+    "./config": "./templates/feel.config.yaml",
+    "./skills/*": "./.claude/commands/*",
+    "./templates/*": "./templates/*"
+  },
+  "files": [
+    "docs",
+    ".claude",
+    "templates",
+    "tools",
+    "foundation",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "echo 'No automated tests yet — run /feel-repeat in the project to validate'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

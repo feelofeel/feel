@@ -1,0 +1,211 @@
+# feel.config.yaml — FEEL documentation network for {{PROJECT}}
+#
+# This file has two layers:
+#
+#   FRAMEWORK SCHEMA (portable) — ceremony levels, head_count thresholds,
+#     routine registry shape. These sections are copied from
+#     github.com/feelofeel/feel and should not be customized.
+#     To upgrade: copy the FRAMEWORK SCHEMA sections from a newer FEEL version.
+#
+#   PROJECT DATA (project-specific) — audiences, docs, relations, comparison
+#     groups. These sections are YOUR project's instantiation of the FEEL
+#     framework. Replace all {{PLACEHOLDER}} values.
+#
+# Maintained by: feel-repeat (validation), feel-doc (catalog sync)
+# -------------------------------------------------------------------
+
+
+# ══════════════════════════════════════════════════════════════════
+# PROJECT DATA — replace when adopting FEEL in a new project
+# ══════════════════════════════════════════════════════════════════
+
+# ── External planning tracker ─────────────────────────────────────
+# What external system tracks plans, bugs, feature requests?
+# feel-repeat reads this when recommending migration of stale plan docs.
+external_tracker:
+  type: {{jira|github|linear|notion|none}}
+  project_key: {{PROJECT_KEY}}
+  url: {{TRACKER_URL}}
+  # Optional fields:
+  # cloud_id: {{CLOUD_ID}}            # Jira-specific
+  # conventions: docs/conventions/{{tracker-templates}}.md
+
+# ── Audience taxonomy ─────────────────────────────────────────────
+# The reader types used in doc.audience below.
+# feel-repeat uses these to classify intentional duplication (OK) vs
+# accidental duplication for the same audience (flag).
+audiences:
+  - id: {{architect}}
+    description: {{builder — design rationale and system invariants}}
+  - id: {{developer}}
+    description: {{day-to-day coder — specs, conventions, how-to}}
+  # Add more audiences as they emerge (operator, barista, manager, etc.)
+
+
+# ── Doc registry ──────────────────────────────────────────────────
+# One entry per doc. `id` matches the FEEL head id in the doc's frontmatter.
+# `audience` is 1-N from the taxonomy above.
+# `guards` is a short phrase: what this doc is the authority on.
+# `head_count_exempt` (optional): true for docs expected to be large by design.
+docs:
+  - id: super-index
+    path: CLAUDE.md
+    role: index
+    audience: [{{architect}}, {{developer}}]
+    guards: change-type routing; project behavioral rules; sticky facts
+
+  - id: feel
+    path: docs/conventions/feel.md
+    role: convention
+    audience: [{{architect}}, {{developer}}]
+    guards: FEEL framework operating spec
+
+  - id: decisions
+    path: docs/history/decisions.md
+    role: log
+    audience: [{{architect}}]
+    guards: non-obvious decision record (skill-only)
+
+  # Add your project docs here:
+  # - id: {{doc-id}}
+  #   path: docs/{{path}}.md
+  #   role: {{spec|reference|guide|rationale|convention|log|plan}}
+  #   audience: [{{audience_id}}]
+  #   guards: {{what this doc is the authority on}}
+
+
+# ── Relation registry ─────────────────────────────────────────────
+# Optional: explicit source→derived pairs with authoring intent.
+# feel-repeat uses these to flag when a derived doc is stale relative
+# to its source. If empty, feel-repeat still checks declared frontmatter.
+relations: []
+# Example:
+# relations:
+#   - source: app-user-stories
+#     derived: [user-barista, user-manager]
+#     intent: guides authored from the spec
+
+
+# ── Comparison groups ─────────────────────────────────────────────
+# Sets of docs that cover adjacent concepts — feel-repeat checks them
+# for accidental content duplication or staleness within the group.
+comparison_groups: []
+# Example:
+# comparison_groups:
+#   - name: auth-docs
+#     docs: [architecture, developer-stories]
+#     concept: Authentication flow and tenancy rules
+
+
+# ── Work modes (roles) ────────────────────────────────────────────
+# Optional: named combinations of ceremony level + skill invocations.
+# feel-session can reference these to orient at session start.
+roles: []
+# Example:
+# roles:
+#   - name: feature-work
+#     ceremony: normal
+#     typical_skills: [feel-doc, feel-decision]
+#   - name: doc-maintenance
+#     ceremony: light
+#     typical_skills: [feel-doc, feel-repeat]
+
+
+# ══════════════════════════════════════════════════════════════════
+# FRAMEWORK SCHEMA — portable, from github.com/feelofeel/feel v1.1
+# Do not customize these sections. To upgrade: re-copy from the FEEL repo.
+# ══════════════════════════════════════════════════════════════════
+
+# ── Ceremony levels ───────────────────────────────────────────────
+ceremony_levels:
+  safety:
+    includes: [external_writes, migrations, prod, auth, tenancy]
+    requires: [governing_docs, named_project_skill, load_bearing_doc_update, decision_log_if_non_obvious, verification]
+  normal:
+    includes: [feature_behaviour, user_visible_flows, meaningful_docs, operator_workflow]
+    requires: [spec_or_doc_sync, changelog_if_behaviour_changed, focused_tests]
+  light:
+    includes: [copy, css, visual_polish, internal_refactors]
+    requires: [nearby_context, risk_based_tests]
+    skips_by_default: [changelog, version_bump, doc_head_churn]
+  emergency_skip:
+    explicit_phrases: ["skip ceremony", "no ceremony", "skip the skills", "quick one"]
+    skips_by_default: [changelog, doc_sync, routine_skill_invocation]
+    never_skips: [safety]
+
+# ── Head-count thresholds ─────────────────────────────────────────
+head_count:
+  heading_warning: 12
+  heading_split: 18
+  char_warning: 8000
+  char_split: 15000
+  split_action: >
+    Identify the 3-5 most coherent heading clusters in this doc, extract
+    them into a new derived doc with `derived_from` pointing at the original,
+    and reduce the original to a router + summary pointing at the derived docs.
+    Run /feel-doc on both the original and each new derived doc.
+
+
+# ── Plan-doc staleness ────────────────────────────────────────────
+plan_staleness:
+  stale_after_releases: 3
+  action: >
+    Recommend migrating still-live items to external_tracker, then reduce
+    the doc to a pointer stub (or delete it). The human confirms which
+    items are still live. Run /feel-doc after restructuring.
+
+
+# ── Routine registry ──────────────────────────────────────────────
+# FEEL framework routines (feel-* entries are portable across projects).
+# Add your project-specific routines below the feel-* block.
+routines:
+  - name: feel-doc
+    skill: feel-doc
+    trigger: normal/safety ceremony for any meaningful doc edit
+    scope: the edited doc and its derived docs
+    what_it_does: >
+      Refreshes the FEEL head (doc_revision, app_version, updated), enforces
+      source_of/derived_from symmetry, and refreshes the CLAUDE.md catalog.
+
+  - name: feel-decision
+    skill: feel-decision
+    trigger: a non-obvious architectural or product decision is made
+    scope: docs/history/decisions.md
+    what_it_does: >
+      Appends a dated row. The substance goes in the codified-in doc first.
+      Prune-audit mode removes rows that have been absorbed — human-approved.
+
+  - name: feel-repeat
+    skill: feel-repeat
+    trigger: >
+      After any doc change that touches a comparison_group (--diff mode);
+      or periodically as a health check (no argument).
+    scope: comparison_groups; declared relations; head-count thresholds; plan_staleness; skill layer
+    what_it_does: >
+      Detects accidental repetition, missing relations, staleness across doc
+      clusters, stale plan docs, within-doc duplication, head-count overflows,
+      and skill-layer drift. Reports; never auto-edits.
+
+  - name: feel-session
+    skill: feel-session
+    trigger: on demand — start of a session when orientation is needed
+    scope: git log, CHANGELOG.md [Unreleased], planning pointer
+    what_it_does: >
+      Produces a ~10-line session brief: last change, open unreleased work,
+      and a sensible focus recommendation.
+
+  - name: feel-health
+    skill: feel-health
+    trigger: on demand — when token budget or doc weight is a concern
+    scope: all docs in registry
+    what_it_does: >
+      Reports per-role token footprint, flags outlier docs, estimates session
+      pressure. Never loads file bodies — uses fs.stat only.
+
+  # ── Add project-specific routines below ───────────────────────────
+  # - name: {{project}}-changelog
+  #   skill: {{project}}-changelog
+  #   trigger: normal/safety ceremony when behaviour or workflow changed
+  #   scope: CHANGELOG.md
+  #   what_it_does: >
+  #     {{describe what it does}}
