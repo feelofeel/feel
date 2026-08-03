@@ -39,7 +39,7 @@ audiences:
     description: {{builder — design rationale and system invariants}}
   - id: {{developer}}
     description: {{day-to-day coder — specs, conventions, how-to}}
-  # Add more audiences as they emerge (operator, barista, manager, etc.)
+  # Add more audiences as they emerge (operator, end-user, administrator, etc.)
 
 
 # ── Doc registry ──────────────────────────────────────────────────
@@ -82,7 +82,7 @@ relations: []
 # Example:
 # relations:
 #   - source: app-user-stories
-#     derived: [user-barista, user-manager]
+#     derived: [user-guide, admin-guide]
 #     intent: guides authored from the spec
 
 
@@ -111,10 +111,38 @@ roles: []
 #     typical_skills: [feel-doc, feel-repeat]
 
 
+# ── Optional publication contracts ───────────────────────────────
+# A publisher can require delivery metadata without making it part of
+# FEEL's core head. Internal practitioner articles may use `diataxis`
+# without declaring page_kind; internal role:index pages already route.
+publications: []
+# Example:
+# publications:
+#   - target: docs.example.com
+#     source_root: docs/public
+#     validator: node tools/docs/validate-public.mjs
+#     requires: [visibility, locale, slug, summary, audience, page_kind]
+#     article_requires: [diataxis]
+#     landing_omits: [diataxis]
+
+
+# ── Skill locations ──────────────────────────────────────────────
+skill_paths:
+  active: [.claude/commands]
+  archive: [.claude/skills-archive]
+
+
 # ══════════════════════════════════════════════════════════════════
-# FRAMEWORK SCHEMA — portable, from github.com/feelofeel/feel v1.1
+# FRAMEWORK SCHEMA — portable, from github.com/feelofeel/feel v1.5
 # Do not customize these sections. To upgrade: re-copy from the FEEL repo.
 # ══════════════════════════════════════════════════════════════════
+
+# ── Document vocabularies ────────────────────────────────────────
+vocabularies:
+  roles: [index, spec, reference, convention, guide, rationale, log, plan, research]
+  statuses: [living, canonical, draft, working, plan, deprecated]
+  diataxis: [tutorial, how-to, reference, explanation]
+  page_kinds: [article, landing]
 
 # ── Ceremony levels ───────────────────────────────────────────────
 ceremony_levels:
@@ -123,7 +151,7 @@ ceremony_levels:
     requires: [governing_docs, named_project_skill, load_bearing_doc_update, decision_log_if_non_obvious, verification]
   normal:
     includes: [feature_behaviour, user_visible_flows, meaningful_docs, operator_workflow]
-    requires: [spec_or_doc_sync, changelog_if_behaviour_changed, focused_tests]
+    requires: [spec_or_doc_sync, release_record_if_configured, focused_tests]
   light:
     includes: [copy, css, visual_polish, internal_refactors]
     requires: [nearby_context, risk_based_tests]
@@ -150,9 +178,9 @@ head_count:
 plan_staleness:
   stale_after_releases: 3
   action: >
-    Recommend migrating still-live items to external_tracker, then reduce
-    the doc to a pointer stub (or delete it). The human confirms which
-    items are still live. Run /feel-doc after restructuring.
+    Recommend migrating still-live items to the configured planning source,
+    then reduce the doc to a pointer stub (or delete it). If no external
+    tracker exists, keep the local plan. Human confirmation is required.
 
 
 # ── Routine registry ──────────────────────────────────────────────
@@ -164,8 +192,10 @@ routines:
     trigger: normal/safety ceremony for any meaningful doc edit
     scope: the edited doc and its derived docs
     what_it_does: >
-      Refreshes the FEEL head (doc_revision, app_version, updated), enforces
-      source_of/derived_from symmetry, and refreshes the CLAUDE.md catalog.
+      Refreshes the FEEL head (doc_revision, updated, optional stream stamp), enforces
+      source_of/derived_from symmetry, preserves optional metadata, classifies
+      practitioner content through the Diátaxis compass, refreshes toc/head_lines,
+      refreshes the CLAUDE.md catalog, and runs configured publication validators.
 
   - name: feel-decision
     skill: feel-decision
@@ -173,34 +203,38 @@ routines:
     scope: docs/history/decisions.md
     what_it_does: >
       Appends a dated row. The substance goes in the codified-in doc first.
-      Prune-audit mode removes rows that have been absorbed — human-approved.
+      Prune-audit removes approved absorbed rows only when durable history exists;
+      without it, the log stays append-only.
 
   - name: feel-repeat
     skill: feel-repeat
     trigger: >
       After any doc change that touches a comparison_group (--diff mode);
       or periodically as a health check (no argument).
-    scope: comparison_groups; declared relations; head-count thresholds; plan_staleness; skill layer
+    scope: complete heads; publication contracts; comparison_groups; declared relations; head-count thresholds; plan_staleness; configured skill paths
     what_it_does: >
-      Detects accidental repetition, missing relations, staleness across doc
-      clusters, stale plan docs, within-doc duplication, head-count overflows,
+      Detects malformed heads, invalid vocabularies/publication metadata,
+      accidental repetition, missing relations, staleness, size overflows,
       and skill-layer drift. Reports; never auto-edits.
 
   - name: feel-session
     skill: feel-session
     trigger: on demand — start of a session when orientation is needed
-    scope: git log, CHANGELOG.md [Unreleased], planning pointer
+    scope: >
+      Best available evidence: git/history first, then filesystem, optional
+      release and planning pointers.
     what_it_does: >
-      Produces a ~10-line session brief: last change, open unreleased work,
-      and a sensible focus recommendation.
+      Produces a compact session brief and works without git, commits,
+      a changelog, or a roadmap.
 
   - name: feel-health
     skill: feel-health
     trigger: on demand — when token budget or doc weight is a concern
     scope: all docs in registry
     what_it_does: >
-      Reports per-role token footprint, flags outlier docs, estimates session
-      pressure. Never loads file bodies — uses fs.stat only.
+      Reports per-role token footprint, validates and measures complete heads,
+      flags outliers, and estimates session pressure without loading bodies into
+      the agent context.
 
   # ── Add project-specific routines below ───────────────────────────
   # - name: {{project}}-changelog

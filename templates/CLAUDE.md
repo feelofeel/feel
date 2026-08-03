@@ -4,7 +4,6 @@ id: super-index
 role: index
 status: living
 doc_revision: 1
-app_version: 0.1.0
 updated: {{YYYY-MM-DD}}
 source_of: []
 derived_from: []
@@ -20,7 +19,7 @@ derived_from: []
 
 ## Super-index
 
-This is the map. **The catalog routes; each doc's head versions.** For a doc's freshness or lineage, read its ~12-line YAML head — not its body. To route a task, scan the change-type table below.
+This is the map. **The catalog routes; each doc's head versions.** For freshness, lineage, audience, or reader need, read YAML from the opening `---` through its closing `---`; if `head_lines` exists, continue through that declared navigation zone. Never assume a fixed line count. To route a task, scan the change-type table below.
 
 ### Doc catalog
 
@@ -64,7 +63,7 @@ What "good" looks like here. Enforced by skills where risk earns it, and kept li
 - **Tests are executable truth, not coverage theatre.** {{testing discipline — framework, style, what one test covers}}
 - **Ceremony is proportional.** Safety work gets full ceremony; normal feature work keeps specs/docs/changelog honest; light polish avoids process churn. Explicit skip-ceremony never bypasses safety rules.
 - **Docs self-describe and route cheaply (FEEL).** Every doc opens with a YAML head (`docs/conventions/feel.md`); relations are declared both ways; this super-index is the one map. Don't add a doc without a head.
-- **The decision log is append-only and skill-only.** `docs/history/decisions.md` is written *only* by `/feel-decision` — append when a non-obvious choice is made; prune rows once they're incorporated elsewhere (git is the archive). Never hand-edit it.
+- **The decision log is skill-only.** `/feel-decision` appends everywhere; it prunes absorbed rows only when durable history preserves them. Without history, keep it append-only.
 - {{Other project disciplines — migrations, integrations, etc.}}
 
 **Skill family.** `feel-*` are framework-generic: `feel-doc`, `feel-decision`, `feel-repeat`, `feel-session`, `feel-health`. `{{project}}-*` are project-specific.

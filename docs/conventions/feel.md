@@ -3,11 +3,10 @@ title: FEEL — Documentation Operating System
 id: feel
 role: convention
 status: canonical
-doc_revision: 11
-feel_version: "1.1"
-app_version: 1.47.0
-updated: 2026-06-21
-source_of: [concurrent-workstreams, feel-adoption]
+doc_revision: 13
+feel_version: "1.5"
+updated: 2026-08-03
+source_of: [feel-adoption]
 derived_from: []
 toc:
   - "§1 The frontmatter head"
@@ -24,11 +23,11 @@ toc:
 
 # FEEL — a documentation operating system
 
-**FEEL** is how docs work in a feelofeel project. Git versions code; **FEEL versions docs**. The goal is to *feel light*: quick lookups, few tokens, no soreness from re-reading thousands of lines to find one fact.
+**FEEL** is how docs work in a project. Version control strengthens evidence when available; **FEEL versions docs with or without it**. The goal is to *feel light*: quick lookups, few tokens, no soreness from re-reading thousands of lines to find one fact.
 
 It rests on four pillars:
 
-- **F — Frontmatter first.** Every doc opens with a YAML head that declares its identity, role, version, and relations. You learn a doc's place in the system from its first ~12 lines — you never read a body to find out what a doc *is*.
+- **F — Frontmatter first.** Every doc opens with a YAML head that declares its identity, role, version, and relations. Read the complete block through its closing `---`; heads are variable-length identity cards, not a fixed number of lines.
 - **E — Explicit, two-way relations.** Authoring relations (`source_of` / `derived_from`) are declared on **both** ends. The doc graph lives in data — checkable by a skill, viewable in Obsidian.
 - **E — Evolve with proportional ceremony.** Docs carry `doc_revision` + `app_version` + `updated`, but the process scales with risk: safety work gets full ceremony; light polish does not.
 - **L — Light by default.** One super-index (`CLAUDE.md`) routes every task. The **catalog routes; the heads version.** Read the smallest bucket that answers the question.
@@ -68,8 +67,28 @@ Optional fields, used only when they earn their place:
 - `supersedes` / `superseded_by: <id>` — for replaced docs.
 - `tracker: <external-id-or-url>` — convenience back-link to the external work-tracker item driving this doc's changes. **Not** part of the authoring graph: no symmetry, `feel-doc` doesn't validate it, remove it when the work closes. Which tracker a project uses is declared in `feel.config.yaml`, never in this spec.
 - `validated_prod_version` / `validated_dev_version` / `validated_at` — evidence a visually or operationally sensitive doc was checked against live environments. For UI, runbook, and environment docs; omit for ordinary conceptual edits.
+- `audience: <id> | [ids]` — intended reader types from the project taxonomy. It helps a router choose among adjacent docs; it does not create an authoring relation.
 - `toc: ["§1 Title", …]` — H2-level section index, for docs with 4+ sections. Lets a reader grasp structure from the head alone and issue a targeted section read instead of loading the body. Maintained by `feel-doc`.
-- `head_lines: <int>` — line count of the navigational zone (head + any post-YAML summary block), so a reader can `Read(limit=N)`. Only for docs carrying a post-YAML summary; omit otherwise.
+- `head_lines: <int>` — line count of the complete navigational zone when a post-YAML summary follows the head. Readers always consume YAML through the closing delimiter first, then continue to this line only when the field exists. Omit it for ordinary heads.
+
+### Reader need and publication metadata
+
+[Diátaxis](https://diataxis.fr/) is an optional second dimension for durable practitioner-facing articles. FEEL still owns authority, freshness, lineage, and routing; Diátaxis says what the reader needs at this moment:
+
+[Complex hierarchies are supported](https://diataxis.fr/complex-hierarchies/): FEEL keeps audience-first catalogs and landing routers instead of forcing four top-level folders.
+
+| Content | Serves | `diataxis` |
+|---|---|---|
+| action | acquisition of skill | `tutorial` |
+| action | application of skill | `how-to` |
+| cognition | application of skill | `reference` |
+| cognition | acquisition of skill | `explanation` |
+
+- `diataxis: tutorial | how-to | reference | explanation` — optional on an internal practitioner article when it adds useful information beyond `role`; normally omitted from specs, indexes, logs, plans, and research.
+- `page_kind: article | landing` — delivery shape used by a configured publication contract. An article answers one primary reader need. A landing routes to several and therefore omits `diataxis`.
+- `visibility`, `locale`, `translation_key`, `translation_revision`, `slug`, `summary`, and `publish_target` are optional delivery metadata. A project's `publications` config declares which are required; FEEL does not assume a publisher or locale.
+
+`role` and `diataxis` are deliberately orthogonal: a FEEL `guide` can be a tutorial or how-to, while a `rationale` can publish as explanation. If an article cannot honestly choose one primary mode, split it or turn it into a landing that routes to focused articles. Internal `role: index` pages already provide this routing shape and do not need `page_kind` merely for symmetry.
 
 ---
 
@@ -94,7 +113,8 @@ Optional fields, used only when they earn their place:
 |---|---|
 | `living` | continuously updated to track reality |
 | `canonical` | the authoritative source for its domain |
-| `draft` | work in progress, not yet authoritative |
+| `draft` | incomplete content, not yet ready to rely on |
+| `working` | active analysis or research that may change as evidence develops |
 | `plan` | a plan not yet (fully) realized |
 | `deprecated` | superseded; kept for history (set `superseded_by`) |
 
@@ -149,7 +169,7 @@ Optional validation stamps answer a narrower question: *which deployed app versi
 **The catalog routes; the heads version.**
 
 - **`CLAUDE.md` is the super-index** — always loaded, the one map. It holds a compact **doc catalog** (`id · role · read-when · relations`) and the **change-type router** (changing X? → read these docs / code / tests). One glance routes any task; you should rarely need to open another doc just to find where to look.
-- **The heads carry the versions.** When you need a doc's freshness or lineage, read its ~12-line head — not its body, and not a separate registry.
+- **The heads carry the versions.** When you need freshness or lineage, read from the opening `---` through the closing `---`. If the head declares `head_lines`, continue through that navigation zone. Never assume a fixed line count.
 - **`docs/index.md`** is the public entry point for GitHub browsers: the public/local tier split plus a plain link list. It points at the `CLAUDE.md` super-index for routing rather than duplicating it.
 
 Reading order for any change: `CLAUDE.md` (rules + router) → the bucket's docs → the code anchor → the concept test. Read the smallest bucket that matches; widen only if the task crosses a boundary.
@@ -159,7 +179,7 @@ The full traversal, as a contract:
 ```
 CLAUDE.md (always loaded)
   └─ change-type router → which doc + code anchor
-       └─ doc head → is it current? (app_version) · role? · relations?
+       └─ complete doc head → current? · role/audience/reader need? · relations/toc?
             ├─ [derived_from set?] check source's app_version; if source is newer, read source first
             ├─ [source_of set?]   derived docs inherit app_version; feel-doc syncs them downstream
             └─ doc body → only if head confirms this is the right place
@@ -170,7 +190,7 @@ CLAUDE.md (always loaded)
 **Traversal rules:**
 - Source is authority — on conflict, update source first; `feel-doc` syncs derived docs. Read a source/derived pair as source head → relevant source section → derived head, opening the derived body only for role-specific content the source lacks.
 - Body links ≠ authoring relations — `[see architecture §4]` is navigation; only `source_of`/`derived_from` is the graph.
-- **Staleness rule (standing):** before acting on any doc's content, glance at `app_version`; if it predates the feature you're touching, update body + `/feel-doc` before relying on it.
+- **Staleness rule (standing):** before acting on a doc, inspect its stream stamp when one exists; otherwise use `updated`, `doc_revision`, and source relations. Update body + `/feel-doc` before relying on evidence that predates the change.
 
 ---
 
@@ -178,10 +198,10 @@ CLAUDE.md (always loaded)
 
 `docs/history/decisions.md` is an append-only `log`. It is written **only** by the `feel-decision` skill — never by hand. Two operations:
 
-- **append** — when a non-obvious decision is made, add one dated row: `| date | decision | codified in |`. The substance goes in the doc named under *codified in* (`architecture`, `invariants`, …), not in the log.
-- **prune-audit** — routinely, verify each row's *codified in* target actually contains the decision now. If it does, the row has done its job: prune it. Git retains the full history. This keeps the live log a short rolling window instead of an ever-growing wall.
+- **append** — when a non-obvious decision is made, add one dated row: `| date | decision | codified in |`. The substance goes in the named governing doc. If absorbing it immediately would be disproportionate, mark the target `(pending)` and absorb it at the next audit; a pending row is never a prune candidate.
+- **prune-audit** — verify each row's *codified in* target actually contains the decision. Delete an absorbed row only when durable history already preserves it and the human approves. With no tracked history or declared immutable archive, report candidates but keep the log append-only.
 
-A decision "graduates" out of the log once it's incorporated elsewhere. The log is a staging area, not an archive — the archive is git.
+A decision graduates once it is incorporated elsewhere and durable history preserves the removed row. Git is the preferred archive, not a prerequisite for append mode. Projects without durable history keep the live log append-only. A `(pending)` marker is removed only after its substance lands.
 
 **Division of labour.** The human owns intent, scope, approval of risky actions, and prune-audit judgment (only rows the human explicitly confirms get pruned — absorption is validated by a human read, not a file-existence check). The AI owns routing, execution, skill invocation per ceremony level, and doc-head maintenance — the human never manually bumps `doc_revision`/`app_version` or hunts for the authoritative file.
 
@@ -203,14 +223,14 @@ FEEL is not a tax. Pick the smallest ceremony that protects the risk:
 
 | Level | Use for | Required behaviour |
 |---|---|---|
-| **Safety** | Poster writes, migrations, prod operations, auth, tenancy | Full guardrails: read the governing docs, use the named project skill, update load-bearing docs, record non-obvious decisions, and verify before prod impact. |
-| **Normal** | Feature behaviour, user-visible flows, docs, changelog-worthy operator workflow | Sync the relevant spec/docs, add an Unreleased changelog note when behaviour changed, and run focused tests/checks. |
+| **Safety** | External writes, destructive changes, migrations, production operations, auth, tenancy | Full guardrails: read governing docs, use any named project skill, update load-bearing docs, record non-obvious decisions, and verify before impact. |
+| **Normal** | Feature behaviour, user-visible flows, docs, operator workflow | Sync relevant specs/docs, update the project changelog when a release stream uses one, and run focused checks. |
 | **Light** | Copy, CSS, visual polish, internal refactors | Inspect nearby context, test only what risk justifies, and skip changelog/version/doc-head churn unless behaviour changed. |
 | **Emergency / skip** | Explicit owner request: "skip ceremony", "no ceremony", "skip the skills", "quick one" | Do the work with no routine changelog/doc overhead. Safety ceremony still applies if safety areas are touched; log only safety-relevant actions. |
 
 If a task mixes levels, follow the highest-risk level for the risky part and keep the rest light. The decision log is for choices that constrain future work, not for every implementation detail.
 
-**Version bookkeeping is release-cut only.** While a stream is in flight, it adds `[Unreleased]` bullets and bumps `doc_revision` + `updated` on docs it actually changes. It never bumps `package.json` versions or sweeps `app_version` globally — that is the release cut's job, once, on the integration branch, via `<project>-release`.
+**Version bookkeeping is release-cut only when a release stream exists.** In-flight work updates only changed docs and any project-defined Unreleased record. Projects without a release train omit stream fields and use `doc_revision` + `updated`.
 
 ---
 
@@ -219,14 +239,14 @@ If a task mixes levels, follow the highest-risk level for the risky part and kee
 FEEL ships as skills (`.claude/commands/`). The naming line is the reusability boundary:
 
 - **`feel-*` — framework-generic, portable to any project.** The active core is five skills:
-  - `feel-doc` — create or update a doc to the FEEL standard: write/refresh the head, bump `doc_revision`, stamp `app_version` + `updated`, enforce relation symmetry, refresh the `CLAUDE.md` catalog.
-  - `feel-decision` — the sole writer of `decisions.md` (append + prune-audit, §6).
-  - `feel-repeat` — doc **and skill** network health check: detects cross-doc staleness, missing relation declarations, within-doc concept duplication, docs that have grown past the head-count thresholds defined in `docs/feel.config.yaml`, and skill-layer drift (active/archived duplicates, dangling references, missing contracts, `feel-*` portability leaks, orphans). Run after any doc edit (`--diff`) or periodically as a full-graph scan.
-  - `feel-session` — session-opening brief: git state, open changelog work, and the planning pointer into a ≤20-line orient. Session start, not frequent.
-  - `feel-health` — the **success gauge**: doc/skill token-footprint dashboard over `tools/feel/health.mjs`. With `feel-repeat` it answers "is FEEL set up right and still light?" — `feel-repeat` audits structural honesty (relations, staleness, duplication — across docs *and* the skill family), `feel-health` audits weight. A green pass on both is the objective "yes."
+  - `feel-doc` — create or update a doc to the FEEL standard: refresh revision/date, optional stream and reader/delivery metadata, relation symmetry, and the canonical super-index.
+  - `feel-decision` — the sole writer of `decisions.md`; append works everywhere, while pruning requires durable history (§6).
+  - `feel-repeat` — doc **and skill** network health check: detects malformed or inconsistent heads, cross-doc staleness, missing relations, mixed reader modes, repetition, size drift, and skill-layer drift. Run after any doc edit (`--diff`) or periodically as a full-graph scan.
+  - `feel-session` — capability-aware session brief: prefer git/history, then degrade to filesystem state and optional local planning/release pointers in ≤20 lines.
+  - `feel-health` — the **success gauge**: doc/skill token-footprint and head-cost dashboard over `tools/feel/health.mjs`. With `feel-repeat` it answers "is FEEL set up right and still light?" — `feel-repeat` audits structural honesty; `feel-health` audits weight and deterministic head validity.
 - **`<project>-*` — project-specific, stay with the project:** e.g. `<project>-changelog`, `<project>-migration` (versioning, schema changes, API integration).
 
-**The extended set is archived, not deleted.** Eight further `feel-*` skills (`feel-ghost`, `feel-trace`, `feel-shrink`, `feel-contract`, `feel-mistake`, `feel-sibling`, `feel-seed`, `feel-diff`) live in `feel/skills/` — copy one back into `.claude/commands/` to reactivate. Useful at scale, but each adds per-session skill-text cost, so they stay out of the active set until a project earns them.
+**The extended set is archived, not deleted.** Optional `feel-*` skills live in `.claude/skills-archive/` — copy one into `.claude/commands/` to activate it. Each adds context cost, so activate only what a project earns.
 
 **Contracts.** Skills carrying a `## Contract` section (`requires / guarantees / never`) are chainable and auditable — the `never` clauses constrain an AI that might otherwise hallucinate an action. New skills should always include one. Skill shape: YAML `description` (triggers) → a first visible line stating what the skill does → numbered steps → `## Argument`. The first line matters in the Claude Code UI.
 
@@ -242,7 +262,7 @@ This condition is **absent for code files:**
 
 - A code file IS the current state — it cannot be stale relative to itself.
 - The import graph already IS the relationship graph, runtime-enforced (a comment that can drift vs. a module system that fails loudly).
-- Git provides authorship, date, and line-level diff — more granular than any header field.
+- Version control, when present, provides authorship, date, and line-level diff. Without it, FEEL heads still expose doc identity, local revision, date, and relations; agents must label the weaker evidence.
 
 **The heuristic:** apply FEEL heads wherever described and describer can drift independently. Don't apply them where structural enforcement already guarantees consistency.
 
@@ -253,19 +273,18 @@ For code→doc traceability, prefer a central router (CLAUDE.md's change-type ta
 ## 10. Quick-reference card
 
 ```
-Starting a change?           → CLAUDE.md change-type router first
-Reading a derived doc?       → compare its app_version to source's; if source newer, read source first
+Starting a change?           → canonical super-index router first
+Reading any doc?             → consume YAML through closing ---; then honor head_lines
+Reading a derived doc?       → compare source stream/date/revision before its body
+Classifying an article?      → action/cognition × acquisition/application (§1)
 Choose ceremony level        → safety / normal / light / emergency-skip (§7)
-Editing a source doc?        → feel-doc only for meaningful action-changing edits
+Editing a source doc?        → /feel-doc for meaningful action-changing edits
 Doc looks stale?             → update body + /feel-doc before relying on it
-Behaviour changed?           → /<project>-changelog Unreleased note
-Non-obvious decision?        → /feel-decision (never hand-edit decisions.md)
-Schema change?               → /<project>-migration (files first, then apply)
-Solo work?                   → commit directly to main (PR for sweeping changes)
-≥2 parallel streams?         → node tools/worktree.mjs new <slug> (ws/<slug> worktree each)
-Finishing a stream?          → node tools/worktree.mjs done <slug>
-Ready to release?            → /<project>-release (version bump + doc sweep + CHANGELOG cut)
-Too many permission prompts? → /fewer-permission-prompts
+Version control available?   → prefer status/history/diff as strongest evidence
+No version control?          → use filesystem/session evidence; label uncertainty
+Non-obvious decision?        → /feel-decision (append works without git)
+Pruning decisions?           → require tracked history or immutable archive
+Release stream exists?       → use its project-specific changelog/release routine
 ```
 
 If Claude misses a skill, tune the trigger phrases in that skill's `description:` frontmatter — the cheapest fix before reaching for settings.json hooks.

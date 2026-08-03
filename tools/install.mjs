@@ -35,14 +35,13 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname  = dirname(__filename)
 
-// This script lives at feel/tools/install.mjs.
-// FEEL_DIR  = feel/
-// REPO_ROOT = the repo that contains feel/ (used to find feel.md + feel.config.yaml)
-const FEEL_DIR   = resolve(__dirname, '..')
-const REPO_ROOT  = resolve(FEEL_DIR, '..')
-const SPEC_FILE  = join(REPO_ROOT, 'docs', 'conventions', 'feel.md')
-const CFG_FILE   = join(REPO_ROOT, 'docs', 'feel.config.yaml')
-const SKILLS_DIR = join(FEEL_DIR, 'skills')
+// This script lives at tools/install.mjs inside the standalone FEEL repo.
+const FEEL_DIR     = resolve(__dirname, '..')
+const SPEC_FILE    = join(FEEL_DIR, 'docs', 'conventions', 'feel.md')
+const ADOPTION_FILE = join(FEEL_DIR, 'docs', 'conventions', 'feel-adoption.md')
+const CFG_FILE     = join(FEEL_DIR, 'templates', 'feel.config.yaml')
+const SKILLS_DIR   = join(FEEL_DIR, '.claude', 'commands')
+const HEALTH_TOOL  = join(FEEL_DIR, 'tools', 'feel', 'health.mjs')
 const TMPL_DIR   = join(FEEL_DIR, 'templates')
 
 const CORE_SKILLS = ['feel-doc', 'feel-decision', 'feel-repeat', 'feel-session', 'feel-health']
@@ -169,6 +168,7 @@ function copyFeelCore(targetDir, dryRun) {
 
   // feel.md spec
   tryFile(SPEC_FILE, join(targetDir, 'docs', 'conventions', 'feel.md'), 'docs/conventions/feel.md')
+  tryFile(ADOPTION_FILE, join(targetDir, 'docs', 'conventions', 'feel-adoption.md'), 'docs/conventions/feel-adoption.md')
 
   // core skills
   const cmdDir = join(targetDir, '.claude', 'commands')
@@ -177,12 +177,33 @@ function copyFeelCore(targetDir, dryRun) {
     tryFile(join(SKILLS_DIR, `${s}.md`), join(cmdDir, `${s}.md`), `.claude/commands/${s}.md`)
   }
 
+  // deterministic helper used by feel-health and feel-repeat size checks
+  tryFile(HEALTH_TOOL, join(targetDir, 'tools', 'feel', 'health.mjs'), 'tools/feel/health.mjs')
+
   // feel.config.yaml (template — user must replace PROJECT DATA)
   tryFile(CFG_FILE, join(targetDir, 'docs', 'feel.config.yaml'), 'docs/feel.config.yaml (template)')
 
   // skeleton docs
   tryFile(join(TMPL_DIR, 'decisions.md'), join(targetDir, 'docs', 'history', 'decisions.md'), 'docs/history/decisions.md')
   tryFile(join(TMPL_DIR, 'docs-index.md'), join(targetDir, 'docs', 'index.md'), 'docs/index.md')
+
+  // Version pin for future drift checks. Version control is optional.
+  const lockDest = join(targetDir, '.feel', 'feel.lock')
+  if (!existsSync(lockDest)) {
+    const spec = existsSync(SPEC_FILE) ? read(SPEC_FILE) : ''
+    const feelVersion = spec.match(/^feel_version:\s*["']?([^"'\s]+)["']?/m)?.[1] || 'unknown'
+    write(lockDest, [
+      'framework: FEEL',
+      `feel_version: "${feelVersion}"`,
+      'source: https://github.com/feelofeel/feel',
+      `installed_at: ${today()}`,
+      'adoption_layer: undecided',
+      '',
+    ].join('\n'), dryRun)
+    copied.push('.feel/feel.lock')
+  } else {
+    skipped.push('.feel/feel.lock (exists)')
+  }
 
   return { copied, skipped }
 }

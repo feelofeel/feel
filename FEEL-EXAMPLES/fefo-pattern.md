@@ -2,8 +2,8 @@
 
 **Repo:** `github.com/feelofeel/fefo` (private)  
 **Layer:** L3 + L4 (full: heads + index + ceremony + skills + release train)  
-**feel_version:** 1.1  
-**Docs:** ~30 docs across specs, guides, rationale, conventions, history  
+**feel_version:** 1.5
+**Docs:** 83 managed docs across specs, guides, rationale, conventions, public articles, and history
 **Adopted:** 2026 (FEEL originated here before extraction)
 
 ---
@@ -55,6 +55,10 @@ When ≥2 work streams run in parallel, each gets a `ws/<slug>` branch and a ded
 
 Pattern: **the worktree protocol is optional L4+ behavior** — only needed when parallel streams actually collide.
 
+### 6. Selective Diátaxis layer
+
+SORT uses Diátaxis where reader need materially improves routing: published articles always declare one mode, focused internal tutorials/how-tos/references/explanations may declare one, and specs/logs/research/indexes normally do not. Public landing pages route several modes and therefore omit the field. FEEL roles still carry authority and lifecycle meaning; Diátaxis never replaces them.
+
 ---
 
 ## CLAUDE.md shape
@@ -75,6 +79,6 @@ The fences let you distinguish portable framework rules from FEFO's domain rules
 
 - **External tracker:** Jira SCRUM project, with `cloud_id` for MCP tool calls
 - **Audiences:** 5 (`architect`, `developer`, `operator`, `barista`, `manager`)
-- **Doc registry:** ~30 docs, each with `audience`, `guards`, and optional `head_count_exempt`
+- **Doc registry:** 83 docs, each with `audience`, `guards`, and optional `head_count_exempt`
 - **Comparison groups:** 4 (`batch-lifecycle`, `poster-quirks`, `multi-tenancy`, `poster-configuration`) — these are the clusters `feel-repeat` checks for staleness and duplication
 - **Routines:** 5 `feel-*` core + 4 `fefo-*` project-specific entries

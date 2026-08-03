@@ -4,8 +4,8 @@ Real adoption patterns from projects running FEEL. These show *how* projects ins
 
 | Example | Project | Layer | Pattern highlights |
 |---|---|---|---|
-| [fefo-pattern.md](fefo-pattern.md) | FEFO (SORT app) | L3 + L4 | Multi-tenancy ceremony, Jira connector, release train, project skills, concurrent worktrees |
-| [landing-pattern.md](landing-pattern.md) | SORT Landing | L3 | Minimal adoption, AGENTS.md bridge, static Astro project, no project skills yet |
+| [fefo-pattern.md](fefo-pattern.md) | FEFO (SORT app) | L3 + L4 | Selective Diátaxis, bilingual publication contract, Jira connector, release train, project skills |
+| [landing-pattern.md](landing-pattern.md) | SORT Landing | L3 | Lean authoring network, generated bilingual guides, audience-first landing hierarchy, AGENTS.md bridge |
 
 ## How to read these
 

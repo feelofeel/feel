@@ -15,7 +15,7 @@ Why the mechanism should work. Eight ideas, one per line, each with its conseque
 
 1. **Agents read cold.** Every session starts with zero memory of the repo. → The repo must self-describe, or the agent re-derives it at full price, every time.
 2. **Context is the unit of cost.** Tokens are the bill; attention is the budget. → Structure exists to shrink reads, not to look organized.
-3. **Heads before bodies.** A doc's first ~12 lines answer *what is this, is it current, what's nearby*. → Identity is never discovered by reading prose.
+3. **Heads before bodies.** A doc's complete YAML block answers *what is this, is it current, who is it for, what's nearby*. Read through the closing delimiter; identity is never discovered by reading prose or a fixed line prefix.
 4. **One map.** A single super-index routes every task; the catalog routes, the heads version. → Two maps disagree eventually; the agent can't tell which one lies.
 5. **Relations live in data, declared both ways.** The doc graph is checkable, not implied. → Drift becomes a lint error instead of a surprise.
 6. **Ceremony is proportional to risk.** Safety work gets full guardrails; polish gets none. → Process spent where it's cheap insurance, skipped where it's tax.

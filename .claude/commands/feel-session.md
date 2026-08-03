@@ -1,92 +1,81 @@
 ---
-description: Produce a compact session-opening brief: last change, open Unreleased work, and the current planning pointer. Best at session start, not mid-session. Triggers on /feel-session or any mention of "orient me", "where were we", "session brief", "what should I work on", "catch me up", "session start", "what's open", "where did we leave off".
+description: Produce a compact session-opening brief from the strongest local evidence available. Prefer git history and status when connected, but work without git, commits, a changelog, or a roadmap. Triggers on /feel-session or any mention of "orient me", "where were we", "session brief", "what should I work on", "catch me up", "session start", "what's open", "where did we leave off".
 ---
 
-# feel-session — session-opening brief
+# feel-session — capability-aware session brief
 
-Quickly re-orients a fresh session without loading the whole project.
-It reads git, `CHANGELOG.md`, and the local planning pointer, then prints a brief under 20 lines.
+Orient from the strongest evidence the project actually has. Version control is
+high-priority evidence, not a prerequisite. Keep the result under 20 lines.
 
----
+## 1. Detect available evidence
 
-## 1. Read recent git state
+Check these capabilities without treating a missing one as an error:
 
-Run `git log --oneline -10` to see the last ten commits. Note the most recent
-commit message and date. Run `git status` to check for uncommitted changes.
+1. **Version control:** Is git available? Is this a worktree? Does `HEAD` exist?
+2. **Release stream:** Does `CHANGELOG.md` have an Unreleased section, or does a
+   package manifest expose a current version?
+3. **Planning:** Does `docs/feel.config.yaml` name an external tracker? Is there a
+   `docs/roadmap.md`, another registered `role: plan` doc, or an obvious status doc?
 
-Summarise in one line: "Last commit: `<message>` (<date>). Uncommitted: yes/no."
+## 2. Orient from version control when available
 
----
+- **Git with history:** read at most the last 10 commits plus concise status. This
+  is the primary source for the last change and uncommitted work.
+- **Git worktree without commits:** read concise status including untracked files.
+  Report "no commits yet"; do not fail.
+- **No git/worktree:** inspect the current session's touched paths and a short list
+  of recently modified project files, excluding dependency/build directories.
+  Label the result "filesystem-only; no version history".
 
-## 2. Read the open unreleased work
+Never imply that filesystem timestamps prove authorship or intent.
 
-Open `CHANGELOG.md`. Read the `## [Unreleased]` section. If it contains entries,
-list them as a compact bullet summary (one line each). If it's `_Nothing yet._`,
-note that too.
+## 3. Read release and planning pointers when present
 
----
-
-## 3. Read the planning pointer
-
-Open `docs/roadmap.md` only as a local pointer/parking lot. Planning is moving to
-Jira, so do not treat stale checklist items as authoritative. Summarise the
-pointer in one line, or say "Planning: Jira / not in local docs" if no current
-local horizon is clear.
-
----
+- If `CHANGELOG.md` has `## [Unreleased]`, summarize only that section.
+- Otherwise, report a package-manifest version if present; omit the release line
+  when neither exists.
+- Prefer a configured external tracker when `external_tracker.type` is not `none`.
+  Otherwise read the smallest local planning/status pointer. If none exists, say
+  "Planning: no source configured".
 
 ## 4. Suggest a focus
 
-Based on the above: if there's unreleased work that looks unfinished (only an
-`[Unreleased]` entry but no commit closing it), suggest continuing it. If the
-planning pointer names a specific task, mention it.
-
-Keep the suggestion to one sentence. Don't prescribe — frame it as "the natural
-next thing given where things are," not as an instruction.
-
----
+Use unfinished working-state evidence first, then the planning pointer. With no
+history, frame the suggestion as tentative. Do not synthesize a full task plan.
 
 ## 5. Print the brief
 
+```text
+Session brief — <today>
+
+Evidence       <git history | git/no commits | filesystem-only>
+Last change    <commit summary, recent touched files, or "unknown without history">
+Working state  <concise changed-file summary>
+In flight      <Unreleased summary, package version, or omit>
+Planning       <external/local pointer or "no source configured">
+
+Suggested focus → <one tentative sentence>
 ```
-Session brief — <today's date>
 
-Last change    <one-line commit summary + date>
-Uncommitted    <yes — N files modified / no>
-In flight      <[Unreleased] bullets, or "nothing open">
-Planning       <local pointer/Jira note, one line>
-
-Suggested focus  →  <one-sentence recommendation>
-```
-
-Keep the total output under 20 lines. If any section is empty, omit it. The goal
-is a fast re-orient — not a status report.
-
----
+Omit empty lines and keep the total at 20 lines or fewer.
 
 ## Contract
 
-**Requires**
-- A git repository with at least one commit
-- `CHANGELOG.md` with a `## [Unreleased]` section
-- `docs/roadmap.md` exists as a local planning pointer
+**Requires** read access to the project directory only.
 
 **Guarantees**
-- Output is always ≤ 20 lines
-- Suggestion is always framed as advisory, never imperative
-- Only reads files — never modifies anything
+- Uses git history and status as the primary evidence when they are available
+- Degrades to filesystem/session evidence when git or commits are unavailable
+- Labels evidence quality plainly and keeps output at 20 lines or fewer
+- Treats changelog, package version, external tracker, and plan docs as optional
 
 **Never**
-- Edits any file
-- Runs other skills automatically
-- Synthesises a full task plan (that's the user's call after reading the brief)
-- Treats `docs/roadmap.md` as the authoritative backlog while planning is in Jira
-- Reads the full roadmap, full changelog, or full git log (only the relevant slices)
-
----
+- Fails solely because git, commits, `CHANGELOG.md`, or `docs/roadmap.md` is absent
+- Edits files, initializes git, creates a commit, or connects an external tracker
+- Presents filesystem timestamps as equivalent to version history
+- Reads full logs, changelogs, or planning documents when a relevant slice exists
 
 ## Argument
 
-`$ARGUMENTS` — optional focus hint (e.g. `migration` or `frontend`). If provided,
-bias the suggestion toward that area even if the git/planning state points elsewhere.
-If empty, infer focus from the state data.
+`$ARGUMENTS` is an optional focus hint. If present, use it to choose among the
+available evidence; if absent, infer the most plausible focus and label uncertainty.

@@ -2,22 +2,25 @@
 
 **Repo:** `github.com/feelofeel/SORT-Landing` (public)  
 **Layer:** L3 (heads + index + ceremony + core skills; no release train yet)  
-**feel_version:** 1.1  
-**Docs:** 4 docs (lean; spec-heavy project)  
+**feel_version:** 1.5
+**Docs:** 4 project docs plus 18 generated bilingual public-guide files
 **Adopted:** 2026-06-16
 
 ---
 
 ## What makes this adoption distinctive
 
-### 1. Minimal, correct L3 adoption
+### 1. Minimal L3 project network plus generated documentation
 
-Landing adopted FEEL from scratch (it was never embedded the way FEFO was). It has exactly what L3 requires and nothing more:
+Landing adopted FEEL from scratch and keeps its project-maintenance network lean:
 
-- 4 docs with FEEL heads: `super-index`, `landing-page-definition`, `feel`, `decisions`
+- 4 project docs with FEEL heads: `super-index`, `landing-page-definition`, `feel`, `decisions`
 - 5 core skills active
 - `feel.config.yaml` with 2 audiences, 5 doc registry entries, 2 work modes
 - Decision log with 4 inception rows (2026-06-16)
+- 18 generated UK/EN guide files sourced from SORT, validated as 9 translation pairs
+
+The generated guide collection is deliberately outside Landing's authoring graph: SORT owns the source articles and exports only safe publication metadata. Landing owns rendering, routes, and schema validation. Its guide index groups by audience while Diátaxis labels communicate the immediate reader need.
 
 Pattern: **stop at the layer that fits.** Landing is a static Astro site — no migrations, no release train, no DB writes. L3 is sufficient. Deferred L4 isn't missing; it's deliberately not added yet.
 

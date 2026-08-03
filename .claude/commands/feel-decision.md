@@ -1,55 +1,64 @@
 ---
-description: The only sanctioned writer of docs/history/decisions.md. Append a dated decision row, or run a prune-audit that removes rows already incorporated into architecture.md / invariants.md (git keeps the full history). Triggers on /feel-decision or any mention of "log a decision", "record a decision", "decision log", "prune decisions", "clean the decision log".
+description: The only sanctioned writer of docs/history/decisions.md. Appends non-obvious decisions in every project; prunes absorbed rows only when durable version history already preserves them. Works without git by keeping the log append-only. Triggers on /feel-decision or any mention of "log a decision", "record a decision", "decision log", "prune decisions", "clean the decision log".
 ---
 
 # FEEL decision-log workflow
 
-`docs/history/decisions.md` is an append-only `log`, and **this skill is its only writer** — never hand-edit the file. It is a short rolling window of recent, not-yet-absorbed decisions, not an archive. Git is the archive. Full rule: `docs/conventions/feel.md` §6.
+`docs/history/decisions.md` is skill-only. Append works everywhere. Pruning is an
+optimization available only when durable history already preserves the rows.
 
-The file is a set of dated tables grouped by phase, each row: `| date | decision | codified in |`. "Codified in" points to the doc that holds the substance (`architecture`, `invariants`, a spec, etc.).
+Rows use `| date | decision | codified in |` inside dated phase tables.
 
-## Mode A — append (a new decision was made)
+## Mode A — append
 
-Use when a non-obvious choice is made that future work must respect.
+1. Confirm the choice is non-obvious and future work could reasonably do the opposite.
+2. Put the substance in the governing rationale, reference, or spec first; run
+   `/feel-doc` on that doc. If absorption would be disproportionate now, name the
+   intended target with `(pending)`; pending is a debt marker, never an archive.
+3. Add one dated, one-line row. Keep rationale out of the log.
+4. Refresh the log head's `updated` and `doc_revision`; refresh a stream stamp only
+   when the project defines one.
 
-1. Confirm it's worth logging: it's non-obvious, and someone could reasonably do the opposite later. Obvious choices don't go here.
-2. Put the **substance** in the right home first — `architecture.md` (rationale) or `invariants.md` (load-bearing rule) or the relevant spec. Run `/feel-doc` on that doc.
-3. Add **one** row to the most recent phase table (or start a new dated phase heading): `| YYYY-MM-DD | <one-line decision> | <doc> §<section> |`. Keep it to one line — the *why* lives in the codified-in doc, not here.
+Git, commits, a changelog, and an external tracker are not required for append mode.
 
-## Mode B — prune-audit (routine cleanup)
+## Mode B — prune-audit
 
-Use periodically, or when the log feels long, to keep it light. **Never auto-delete — present candidates to the user and delete only what they approve.**
+1. Verify durable history before proposing deletion. Prefer tracked git history for
+   `docs/history/decisions.md`; an untracked file or repository with no commits does
+   not qualify. A project-declared immutable archive may qualify instead.
+2. Read each `codified in` target and list absorbed/not-found candidates with evidence.
+   Treat `(pending)` rows as absorption candidates: offer to write the substance and
+   remove the marker, but never propose pruning them.
+3. If durable history is unavailable, stop after the report: leave every row in place
+   and say pruning is disabled until history or an archive exists.
+4. If durable history exists, present the complete candidate list and delete only
+   rows the user explicitly approves.
+5. Fix links affected by approved pruning and refresh the head.
 
-1. For each row, open its "codified in" target and check whether that doc **actually contains** the decision now.
-2. Collect all candidates into a review list. For each, note: target doc, the sentence or section where it's absorbed (or "not found"). Present the full list to the user before touching the file.
-3. Delete only the rows the user explicitly approves. This is human-judgment work — absorption has to be confirmed by a read, not just a file-existence check.
-4. For rows the user declines (not yet absorbed) — leave them, or offer to absorb now via `/feel-doc` on the target doc, then re-present for confirmation.
-5. Fix any dead links a prune created (a deleted target, a renamed doc).
-6. Aim to leave only recent or not-yet-absorbed rows. A short log is the goal.
-
-## After either mode
-
-- Keep the file's FEEL head honest: bump `updated` (and `app_version`) on the log itself.
-- Never expand a row into a paragraph here. If it needs explaining, it belongs in the codified-in doc.
+The no-history mode is intentionally append-only. It preserves decisions while the
+project is offline, local-only, or waiting for version-control access.
 
 ## Contract
 
-**Requires**
-- `docs/history/decisions.md` exists with the FEEL head and phase-table structure
-- For append mode: the decision's substance is already written in its `codified in` doc
-- For prune-audit mode: the user is available to approve each deletion (never auto-prunes)
+**Requires** `docs/history/decisions.md` with a FEEL head and phase-table structure;
+append mode also requires the substance to exist in its governing doc or its target
+to be explicitly marked `(pending)`.
 
 **Guarantees**
-- Every appended row follows the `| date | decision | codified in |` format
-- Prune candidates are always presented to the user before any deletion
-- The file's FEEL head (`updated`, `app_version`) is refreshed after any write
+- Append mode works without git or commits
+- Every new row follows the three-column format
+- Prune candidates are shown before deletion
+- Deletion occurs only with both durable history and explicit user approval
+- Pending rows are never pruned and lose the marker only after absorption
+- The head is refreshed after a write, without inventing a release stream
 
 **Never**
-- Edits any doc other than `docs/history/decisions.md`
-- Deletes rows without explicit user approval (even in prune-audit mode)
-- Adds substantive rationale to the log (substance belongs in the codified-in doc)
-- Creates the decisions file if it doesn't exist (that's a repo-init task)
+- Edits any other doc or creates the decisions file
+- Deletes when the file is untracked, has no durable history, or approval is absent
+- Treats a filesystem backup assumption as proven history
+- Adds substantive rationale to the log
 
 ## Argument
 
-`$ARGUMENTS` selects the mode: a decision sentence → **append** that decision; `prune` / `clean` / `audit` → run **prune-audit**. If empty, infer from context — a just-made decision means append; a request to tidy means prune.
+`$ARGUMENTS`: a decision sentence selects append; `prune`, `clean`, or `audit`
+selects prune-audit; empty infers the mode from context.

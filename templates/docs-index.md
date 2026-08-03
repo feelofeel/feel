@@ -4,7 +4,6 @@ id: index
 role: index
 status: living
 doc_revision: 1
-app_version: 0.1.0
 updated: {{YYYY-MM-DD}}
 source_of: []
 derived_from: []

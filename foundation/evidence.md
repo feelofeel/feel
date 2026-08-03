@@ -3,8 +3,8 @@ title: FEEL Evidence Ledger
 id: feel-evidence
 role: log
 status: living
-doc_revision: 1
-updated: 2026-06-10
+doc_revision: 2
+updated: 2026-08-03
 source_of: []
 derived_from: [feel-promise]
 ---
@@ -20,6 +20,7 @@ Append-only. Only measured or directly observed facts; every entry names its cla
 | 2026-06-10 | C3 | Decision log holds steady at ~120 lines because prune-on-absorption actually runs — append-only logs normally only grow. | Line count + git history of `docs/history/decisions.md` | Single repo, single operator. |
 | 2026-06-10 | C7* | 2026-06-10 consolidation archived 9 of 13 feel-* skills and merged architecture sub-docs — the system shed unused weight instead of accreting. (*supports principle 7 rather than a promise claim) | Git history; `feel/README.md` archive section | Self-pruning required operator initiative; not automatic. |
 | 2026-06-10 | C1 | Anecdote: a cross-doc business question (pricing × competitors × infra cost) was answered from 3 targeted file reads, cold, with zero exploratory reads — routed by the super-index catalog. | Session observation | Single anecdote, authored repo, agent had project memory of the repo's layout. |
+| 2026-08-03 | C1 | **Demonstrated n=1 (anecdotal):** Diátaxis labels plus decomposed audience routers improved targeted selection and reduced mixed-purpose body reads during a FEEL/SORT alignment session. The gain was partially defeated by fixed-line head reads, duplicated role/mode vocabulary, and FEEL version drift. Of 83 docs under SORT's `docs/`, 38 complete heads exceeded 15 lines; heads averaged 97 estimated tokens overall and 117.9 across 39 Diátaxis-tagged docs. | Direct session observation plus deterministic complete-frontmatter inventory before FEEL 1.5 alignment. | One authored repository, one agent, one session, and no control arm; this is not a comparative measurement. |
 
 ## What's still missing
 
