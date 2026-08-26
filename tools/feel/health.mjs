@@ -3,6 +3,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const configPath = join(root, 'docs', 'feel.config.yaml');
@@ -222,9 +223,228 @@ const outliers = docMetrics.filter((doc) => {
 const claudeTokens = existsSync(join(root, 'CLAUDE.md')) ? tokenEstimate(read('CLAUDE.md').length) : 0;
 const descriptionTokens = skillMetrics.reduce((sum, skill) => sum + tokenEstimate(skill.description.length), 0);
 const sessionFloor = 2000 + claudeTokens + descriptionTokens;
+
+// ── Git co-change coupling analysis (Improvement B) ──────────────
+
+function hasGit() {
+  try { execSync('git rev-parse --is-inside-work-tree', { cwd: root, stdio: 'pipe' }); return true; }
+  catch { return false; }
+}
+
+function hasCommits() {
+  try { execSync('git rev-parse HEAD', { cwd: root, stdio: 'pipe' }); return true; }
+  catch { return false; }
+}
+
+function analyzeCoChangeCoupling(maxCommits = 200) {
+  if (!hasGit() || !hasCommits()) {
+    return { available: false, reason: 'no git history', pairs: [] };
+  }
+
+  try {
+    // Get recent commits with their changed files
+    const logOutput = execSync(
+      `git log --name-only --pretty=format:"---COMMIT---" -n ${maxCommits}`,
+      { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 },
+    ).trim();
+
+    const commits = logOutput.split('---COMMIT---').filter(Boolean).map(block => {
+      return block.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('---'));
+    }).filter(files => files.length > 1); // Only commits with 2+ files
+
+    if (commits.length < 5) {
+      return { available: false, reason: `too few multi-file commits (${commits.length})`, pairs: [] };
+    }
+
+    // Count co-occurrences for file pairs
+    const pairCount = new Map();
+    const fileCount = new Map();
+
+    for (const files of commits) {
+      for (const f of files) fileCount.set(f, (fileCount.get(f) || 0) + 1);
+      // Generate pairs (limit to avoid combinatorial explosion on large commits)
+      if (files.length > 20) continue;
+      for (let i = 0; i < files.length; i++) {
+        for (let j = i + 1; j < files.length; j++) {
+          const key = [files[i], files[j]].sort().join(' <> ');
+          pairCount.set(key, (pairCount.get(key) || 0) + 1);
+        }
+      }
+    }
+
+    // Filter to pairs with >= 30% co-change rate (relative to the less-frequent file)
+    const pairs = [];
+    for (const [key, count] of pairCount) {
+      if (count < 3) continue; // minimum 3 co-occurrences
+      const [fileA, fileB] = key.split(' <> ');
+      const minFreq = Math.min(fileCount.get(fileA) || 0, fileCount.get(fileB) || 0);
+      if (minFreq < 3) continue;
+      const rate = count / minFreq;
+      if (rate >= 0.3) {
+        pairs.push({ fileA, fileB, coChanges: count, rate: Math.round(rate * 100) });
+      }
+    }
+
+    pairs.sort((a, b) => b.rate - a.rate || b.coChanges - a.coChanges);
+    return { available: true, commitsAnalyzed: commits.length, pairs: pairs.slice(0, 30) };
+  } catch {
+    return { available: false, reason: 'git log failed', pairs: [] };
+  }
+}
+
+function findUnlinkedCoupling(couplingPairs, registryById) {
+  // Check if co-changed pairs involving docs lack frontmatter relations
+  const findings = [];
+  for (const pair of couplingPairs) {
+    const docA = [...registryById.values()].find(d => d.path === pair.fileA);
+    const docB = [...registryById.values()].find(d => d.path === pair.fileB);
+
+    // Both are registered docs — check if they have a relation
+    if (docA && docB) {
+      const aHead = parseHead(existsSync(join(root, pair.fileA)) ? readFileSync(join(root, pair.fileA), 'utf8') : '');
+      const bHead = parseHead(existsSync(join(root, pair.fileB)) ? readFileSync(join(root, pair.fileB), 'utf8') : '');
+      const aSourceOf = Array.isArray(aHead.fields.source_of) ? aHead.fields.source_of : [];
+      const aDerivedFrom = Array.isArray(aHead.fields.derived_from) ? aHead.fields.derived_from : [];
+      const bSourceOf = Array.isArray(bHead.fields.source_of) ? bHead.fields.source_of : [];
+      const bDerivedFrom = Array.isArray(bHead.fields.derived_from) ? bHead.fields.derived_from : [];
+      const aRelated = Array.isArray(aHead.fields.related) ? aHead.fields.related : [];
+      const bRelated = Array.isArray(bHead.fields.related) ? bHead.fields.related : [];
+
+      const hasRelation =
+        aSourceOf.includes(docB.id) || aDerivedFrom.includes(docB.id) || aRelated.includes(docB.id) ||
+        bSourceOf.includes(docA.id) || bDerivedFrom.includes(docA.id) || bRelated.includes(docA.id);
+
+      if (!hasRelation) {
+        findings.push({
+          type: 'unlinked-doc-pair',
+          fileA: pair.fileA,
+          fileB: pair.fileB,
+          idA: docA.id,
+          idB: docB.id,
+          rate: pair.rate,
+          coChanges: pair.coChanges,
+        });
+      }
+    }
+  }
+  return findings;
+}
+
+// ── Composite Doc Health Score (Improvement C) ────────────────────
+
+function computeHealthScore(docMetricsArr, registryById) {
+  const totalDocs = docMetricsArr.length;
+  if (totalDocs === 0) return { score: 10, grade: 'A+', categories: {} };
+
+  // Category 1: Head Validity & Syntax (25%)
+  const docsWithValidHeads = docMetricsArr.filter(d => !d.flags.includes('head-invalid') && !d.flags.includes('missing')).length;
+  const headValidityRatio = docsWithValidHeads / totalDocs;
+
+  // Category 2: Relation Symmetry & Graph Integrity (25%)
+  const allRelationFindings = docMetricsArr.flatMap(d => d.headFindings.filter(f => f.startsWith('missing:source_of') || f.startsWith('missing:derived_from')));
+  // Check actual relation symmetry by scanning heads
+  let totalRelations = 0;
+  let brokenRelations = 0;
+  for (const doc of docMetricsArr) {
+    if (doc.flags.includes('missing')) continue;
+    const text = existsSync(join(root, doc.path)) ? readFileSync(join(root, doc.path), 'utf8') : '';
+    const head = parseHead(text);
+    const sourceOf = Array.isArray(head.fields.source_of) ? head.fields.source_of : [];
+    const derivedFrom = Array.isArray(head.fields.derived_from) ? head.fields.derived_from : [];
+    for (const targetId of sourceOf) {
+      totalRelations++;
+      const targetDoc = docMetricsArr.find(d => d.id === targetId);
+      if (!targetDoc || targetDoc.flags.includes('missing')) { brokenRelations++; continue; }
+      const targetText = existsSync(join(root, targetDoc.path)) ? readFileSync(join(root, targetDoc.path), 'utf8') : '';
+      const targetHead = parseHead(targetText);
+      const targetDerived = Array.isArray(targetHead.fields.derived_from) ? targetHead.fields.derived_from : [];
+      if (!targetDerived.includes(doc.id)) brokenRelations++;
+    }
+    for (const targetId of derivedFrom) {
+      totalRelations++;
+      const targetDoc = docMetricsArr.find(d => d.id === targetId);
+      if (!targetDoc || targetDoc.flags.includes('missing')) { brokenRelations++; continue; }
+      const targetText = existsSync(join(root, targetDoc.path)) ? readFileSync(join(root, targetDoc.path), 'utf8') : '';
+      const targetHead = parseHead(targetText);
+      const targetSourceOf = Array.isArray(targetHead.fields.source_of) ? targetHead.fields.source_of : [];
+      if (!targetSourceOf.includes(doc.id)) brokenRelations++;
+    }
+  }
+  const relationSymmetryRatio = totalRelations === 0 ? 1.0 : (totalRelations - brokenRelations) / totalRelations;
+
+  // Category 3: Index & Catalog Coverage (20%)
+  // Check if super-index exists and references registered docs
+  const claudeExists = existsSync(join(root, 'CLAUDE.md'));
+  const claudeText = claudeExists ? readFileSync(join(root, 'CLAUDE.md'), 'utf8') : '';
+  let indexedDocs = 0;
+  for (const doc of docMetricsArr) {
+    if (doc.id === 'super-index') continue;
+    if (claudeText.includes(doc.id) || claudeText.includes(doc.path)) indexedDocs++;
+  }
+  const indexCoverageRatio = totalDocs <= 1 ? 1.0 : indexedDocs / (totalDocs - 1);
+
+  // Category 4: Structural Economy & TOC (15%)
+  // Docs with >4 H2 sections should have toc in frontmatter
+  let docsNeedingToc = 0;
+  let docsWithToc = 0;
+  for (const doc of docMetricsArr) {
+    if (doc.flags.includes('missing')) continue;
+    if (doc.headings >= 4) {
+      docsNeedingToc++;
+      const text = existsSync(join(root, doc.path)) ? readFileSync(join(root, doc.path), 'utf8') : '';
+      const head = parseHead(text);
+      if (head.fields.toc || head.raw.includes('toc:')) docsWithToc++;
+    }
+  }
+  const tocRatio = docsNeedingToc === 0 ? 1.0 : docsWithToc / docsNeedingToc;
+  // Also factor in split recommendations
+  const splitCount = docMetricsArr.filter(d => d.flags.includes('split-recommended') && !d.flags.includes('exempt')).length;
+  const splitPenalty = Math.min(splitCount * 0.15, 0.5);
+  const structuralRatio = Math.max(0, tocRatio - splitPenalty);
+
+  // Category 5: Token & Size Economy (15%)
+  const avgTokens = docMetricsArr.reduce((s, d) => s + d.tokens, 0) / totalDocs;
+  // Score based on average tokens: <=2000 = 1.0, >=8000 = 0.0
+  const tokenRatio = Math.max(0, Math.min(1, 1 - (avgTokens - 2000) / 6000));
+  const heavyCount = docMetricsArr.filter(d => d.tokens > 10000 && !d.flags.includes('exempt')).length;
+  const heavyPenalty = Math.min(heavyCount * 0.1, 0.4);
+  const economyRatio = Math.max(0, tokenRatio - heavyPenalty);
+
+  // Weighted composite
+  const raw = (
+    headValidityRatio * 0.25 +
+    relationSymmetryRatio * 0.25 +
+    indexCoverageRatio * 0.20 +
+    structuralRatio * 0.15 +
+    economyRatio * 0.15
+  );
+  const score = Math.round(Math.max(1, Math.min(10, raw * 10)) * 10) / 10;
+
+  const grade = score >= 9.5 ? 'A+' : score >= 8.5 ? 'A' : score >= 7.5 ? 'B+' :
+    score >= 6.5 ? 'B' : score >= 5.5 ? 'C+' : score >= 4.5 ? 'C' :
+    score >= 3.5 ? 'D' : 'F';
+
+  return {
+    score,
+    grade,
+    categories: {
+      headValidity: { weight: '25%', ratio: Math.round(headValidityRatio * 100), detail: `${docsWithValidHeads}/${totalDocs} valid` },
+      relationSymmetry: { weight: '25%', ratio: Math.round(relationSymmetryRatio * 100), detail: `${totalRelations - brokenRelations}/${totalRelations} symmetric` },
+      indexCoverage: { weight: '20%', ratio: Math.round(indexCoverageRatio * 100), detail: `${indexedDocs}/${Math.max(totalDocs - 1, 1)} indexed` },
+      structuralEconomy: { weight: '15%', ratio: Math.round(structuralRatio * 100), detail: `${docsWithToc}/${docsNeedingToc} have toc; ${splitCount} split-recommended` },
+      tokenEconomy: { weight: '15%', ratio: Math.round(economyRatio * 100), detail: `avg ~${Math.round(avgTokens)} tokens; ${heavyCount} heavy` },
+    },
+  };
+}
+
+// ── Build model ───────────────────────────────────────────────────
+
+const healthScore = computeHealthScore(docMetrics, byId);
+
 const model = {
   generatedAt: new Date().toISOString(),
   sessionFloor,
+  healthScore,
   docs: docMetrics,
   skills: skillMetrics,
   roles: roleMetrics,
@@ -239,6 +459,14 @@ const model = {
 };
 
 if (args.has('--json')) {
+  // Include coupling data in JSON if requested
+  if (args.has('--coupling')) {
+    const coupling = analyzeCoChangeCoupling();
+    model.coupling = coupling;
+    if (coupling.available) {
+      model.coupling.unlinked = findUnlinkedCoupling(coupling.pairs, byId);
+    }
+  }
   console.log(JSON.stringify(model, null, 2));
   process.exit(0);
 }
@@ -281,16 +509,59 @@ function outlierTable() {
   for (const doc of outliers) console.log(`  ${doc.id}: ~${doc.tokens} tokens [${doc.category}]${doc.flags.includes('exempt') ? ' (exempt)' : ''}`);
 }
 
+function scoreTable() {
+  console.log(`Doc Health Score: ${healthScore.score}/10  [${healthScore.grade}]`);
+  console.log('');
+  console.log('Category'.padEnd(28), 'Weight'.padStart(8), 'Score'.padStart(8), 'Detail');
+  const cats = healthScore.categories;
+  for (const [key, cat] of Object.entries(cats)) {
+    const name = key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
+    console.log(name.padEnd(28), cat.weight.padStart(8), `${cat.ratio}%`.padStart(8), `  ${cat.detail}`);
+  }
+}
+
+function couplingTable() {
+  const coupling = analyzeCoChangeCoupling();
+  console.log('Git co-change coupling analysis');
+  if (!coupling.available) {
+    console.log(`  unavailable: ${coupling.reason}`);
+    return;
+  }
+  console.log(`  Commits analyzed: ${coupling.commitsAnalyzed}`);
+  if (!coupling.pairs.length) {
+    console.log('  No significant co-change patterns found.');
+    return;
+  }
+  console.log('');
+  console.log('  File A'.padEnd(36), 'File B'.padEnd(36), 'Rate'.padStart(6), 'Co-changes'.padStart(12));
+  for (const p of coupling.pairs.slice(0, 20)) {
+    console.log(`  ${p.fileA.slice(0, 33).padEnd(34)} ${p.fileB.slice(0, 33).padEnd(34)} ${(p.rate + '%').padStart(6)} ${String(p.coChanges).padStart(12)}`);
+  }
+  const unlinked = findUnlinkedCoupling(coupling.pairs, byId);
+  if (unlinked.length) {
+    console.log('');
+    console.log('  ⚠  Unlinked doc pairs (co-changed but no frontmatter relation):');
+    for (const u of unlinked) {
+      console.log(`    ${u.idA} <> ${u.idB}  (${u.rate}% co-change rate, ${u.coChanges} co-commits)`);
+    }
+  }
+}
+
 if (args.has('--sizes')) sizes();
 else if (args.has('--heads')) headTable();
 else if (args.has('--roles')) roleTable();
 else if (args.has('--outliers')) outlierTable();
+else if (args.has('--score')) scoreTable();
+else if (args.has('--coupling')) couplingTable();
 else {
   console.log(`FEEL health — ${new Date().toISOString().slice(0, 10)}`);
   console.log(`Session floor: ~${sessionFloor} tokens`);
   console.log(`Docs: ${model.totals.docs} files / ~${model.totals.docTokens} tokens`);
   console.log(`Skills: ${model.totals.skills} files / ~${model.totals.skillTokens} tokens`);
   console.log(`Heads: ${model.headFindings.length ? `${model.headFindings.length} finding(s)` : 'valid'}`);
+  console.log(`Health: ${healthScore.score}/10  [${healthScore.grade}]`);
+  console.log('');
+  scoreTable();
   console.log('');
   roleTable();
   console.log('');

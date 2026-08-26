@@ -3,9 +3,9 @@ title: FEEL — Framework Super-Index
 id: super-index
 role: index
 status: living
-doc_revision: 3
-feel_version: "1.5"
-updated: 2026-08-03
+doc_revision: 4
+feel_version: "1.6"
+updated: 2026-08-14
 source_of: []
 derived_from: []
 ---
@@ -48,7 +48,7 @@ FEEL owns doc metadata, relations, ceremony levels. Projects own their content, 
 | Adoption guide / scale | feel-adoption.md | `docs/conventions/feel-adoption.md` |
 | Core skills (feel-doc, feel-decision, feel-repeat, feel-session, feel-health) | feel.md §8; skill's own ## Contract | `.claude/commands/feel-*.md` |
 | Extended skills (archived) | feel.md §8; skill's own ## Contract | `.claude/skills-archive/feel-*.md` |
-| Installer / deterministic helpers | feel-adoption.md §2; consuming skill contract | `tools/install.mjs`, `tools/feel/` |
+| Installer / deterministic helpers | feel-adoption.md §2, §5; consuming skill contract | `tools/install.mjs`, `tools/feel/` |
 | Templates | feel-adoption.md §2 (adoption steps) | `templates/` |
 | Config schema (FRAMEWORK SCHEMA) | feel.md §8 (feel-repeat config), feel-adoption.md §2 | `templates/feel.config.yaml` |
 | Examples | feel-adoption.md §2 | `FEEL-EXAMPLES/` |
@@ -68,7 +68,7 @@ FEEL owns doc metadata, relations, ceremony levels. Projects own their content, 
 
 ### How to work in this repo
 
-1. **Route via the change-type table above.** Open the smallest matching doc.
+1. **Route via the change-type table above.** Open the smallest matching doc (or use `node tools/feel/route-diff.mjs`).
 2. **Portability check before any feel-* change.** Name one project that has never seen this codebase — would the rule still make sense? If yes, proceed. If no, it's a project adaptation.
 3. **Choose ceremony by risk.** Spec changes → safety (log decision, update all affected skills). Skill fixes → normal (update contract section). Examples / foundation / README → light.
 4. **Log non-obvious framework decisions with `/feel-decision`.** The substance goes in the relevant spec section first.
@@ -89,7 +89,7 @@ FEEL owns doc metadata, relations, ceremony levels. Projects own their content, 
 
 ## Sticky facts
 
-- **feel_version:** `1.5`
+- **feel_version:** `1.6`
 - **Repo:** `https://github.com/feelofeel/feel`
 - **npm (Phase 2):** `@feelofeel/feel` (not yet published; v0.2.0 is the capability-aware pre-publish baseline)
 - **Active adopters:** [FEFO](https://github.com/feelofeel/fefo) (L3+L4) · [SORT Landing](https://github.com/feelofeel/SORT-Landing) (L3)

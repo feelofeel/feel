@@ -38,7 +38,9 @@ test('installs the complete core into a directory without git', () => {
       'CLAUDE.md',
       'AGENTS.md',
       '.feel/feel.lock',
+      '.feel/LICENSE',
       'tools/feel/health.mjs',
+      'tools/feel/route-diff.mjs',
       '.claude/commands/feel-doc.md',
       '.claude/commands/feel-decision.md',
       '.claude/commands/feel-repeat.md',
@@ -49,7 +51,8 @@ test('installs the complete core into a directory without git', () => {
     const existing = readFileSync(join(target, 'docs', 'existing.md'), 'utf8');
     assert.match(existing, /^---\ntitle: Existing doc\n/);
     assert.doesNotMatch(existing, /app_version:/);
-    assert.match(readFileSync(join(target, '.feel', 'feel.lock'), 'utf8'), /feel_version: "1\.5"/);
+    assert.match(readFileSync(join(target, '.feel', 'feel.lock'), 'utf8'), /feel_version: "1\.6"/);
+    assert.match(readFileSync(join(target, '.feel', 'LICENSE'), 'utf8'), /^MIT License/);
 
     const sessionSkill = readFileSync(join(target, '.claude', 'commands', 'feel-session.md'), 'utf8');
     assert.match(sessionSkill, /Fails solely because git/);
@@ -156,6 +159,50 @@ test('installs into an existing git worktree without committing or staging', () 
     assert.match(status, /\?\? \.claude\//);
     assert.match(status, /\?\? \.feel\//);
     assert.doesNotMatch(status, /^[ MARC][MDARC] /m);
+  } finally {
+    rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('upgrades an existing installation non-destructively', () => {
+  const target = fixture();
+  try {
+    // Initial install
+    install(target);
+    const docPath = join(target, 'docs', 'existing.md');
+    writeFileSync(docPath, '---\ntitle: Custom\nid: existing\nrole: guide\ndoc_revision: 5\nupdated: 2026-01-01\nsource_of: []\nderived_from: []\n---\n\n# Custom project doc\n', 'utf8');
+    const configPath = join(target, 'docs', 'feel.config.yaml');
+    writeFileSync(
+      configPath,
+      readFileSync(configPath, 'utf8')
+        .replace('project_key: {{PROJECT_KEY}}', 'project_key: KEEP-ME')
+        .replace('from github.com/feelofeel/feel v1.6', 'from github.com/feelofeel/feel v1.5'),
+      'utf8',
+    );
+
+    // Run upgrade
+    const upgradeOutput = execFileSync(process.execPath, [installer, target, '--upgrade'], { encoding: 'utf8' });
+    assert.match(upgradeOutput, /feel-upgrade complete/);
+    assert.match(upgradeOutput, /upgraded to 1\.6/);
+
+    // Verify project doc was not touched or overwritten
+    const docAfter = readFileSync(docPath, 'utf8');
+    assert.match(docAfter, /doc_revision: 5/);
+    assert.match(docAfter, /Custom project doc/);
+
+    // Verify lockfile was updated
+    const lock = readFileSync(join(target, '.feel', 'feel.lock'), 'utf8');
+    assert.match(lock, /feel_version: "1\.6"/);
+    assert.match(lock, /upgraded_at:/);
+
+    // Verify project config survives while the framework schema is refreshed
+    const config = readFileSync(configPath, 'utf8');
+    assert.match(config, /project_key: KEEP-ME/);
+    assert.match(config, /from github\.com\/feelofeel\/feel v1\.6/);
+    assert.match(readFileSync(join(target, '.feel', 'LICENSE'), 'utf8'), /^MIT License/);
+
+    // Verify tools/feel/route-diff.mjs exists
+    assert.equal(existsSync(join(target, 'tools', 'feel', 'route-diff.mjs')), true);
   } finally {
     rmSync(target, { recursive: true, force: true });
   }

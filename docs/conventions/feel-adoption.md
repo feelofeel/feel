@@ -3,9 +3,9 @@ title: FEEL — Adoption, Layers & Scale
 id: feel-adoption
 role: convention
 status: canonical
-doc_revision: 3
-feel_version: "1.5"
-updated: 2026-08-03
+doc_revision: 4
+feel_version: "1.6"
+updated: 2026-08-14
 source_of: []
 derived_from: [feel]
 toc:
@@ -13,6 +13,7 @@ toc:
   - "§2 Adopting FEEL in a new project"
   - "§3 Agent bindings"
   - "§4 Scale envelope"
+  - "§5 Framework upgrades & safe migration"
 ---
 
 # FEEL — Adoption, Layers & Scale
@@ -44,10 +45,10 @@ The full seed:
 
 1. Copy [feel](feel.md) to `docs/conventions/feel.md` and this file to `docs/conventions/feel-adoption.md`. Keep their `feel_version` — that records which FEEL spec your copy derives from, so when FEEL itself moves you can see the drift. Project-coupled adaptations of the spec belong in your project docs, not edits to the copy; if you fork the spec anyway, keep the original `feel_version` so the divergence point stays visible.
 2. Copy the `feel-*` skills into `.claude/commands/`. At minimum: `feel-doc` and `feel-decision`; the recommended core adds `feel-repeat`, `feel-session`, and `feel-health` ([feel](feel.md) §8). Optional skills live in `.claude/skills-archive/`.
-3. Copy `tools/feel/health.mjs`; it provides deterministic size and role-budget checks for `feel-health` and `feel-repeat`.
+3. Copy `tools/feel/health.mjs` and `tools/feel/route-diff.mjs`; they provide deterministic health checks and changed-file-to-doc routing for `feel-health`, `feel-repeat`, and `feel-session`.
 4. Copy `feel.config.yaml` and replace the **PROJECT DATA** sections (audiences, docs, relations, comparison_groups) with your project's equivalents. Keep the **FRAMEWORK SCHEMA** sections (ceremony_levels, head_count, routine shape) as-is.
 5. Start `CLAUDE.md` from the skeleton: **Identity · SUPER-INDEX (catalog + router) · Behavioral guidelines · Project excellency · Sticky facts**. Use `<!-- FEEL framework rules -->` / `<!-- project rules -->` fences to mark which sections are portable.
-6. Create `docs/index.md` (public pointer) and `docs/history/decisions.md` (empty skill-only log). Pin the adopted version in `.feel/feel.lock`.
+6. Create `docs/index.md` (public pointer) and `docs/history/decisions.md` (empty skill-only log). Pin the adopted version in `.feel/feel.lock`, and retain FEEL's license notice as `.feel/LICENSE` without replacing the host project's own license.
 7. Give every doc a FEEL head from day one. Read and validate heads through their closing delimiter; never standardize them to a fixed line count.
 8. If the project has durable practitioner-facing articles, decide whether Diátaxis adds a useful reader-need dimension. Keep it selective: require a mode for published articles, let landings route several modes, and omit it where `role` already answers the routing question.
 9. Create your own `<project>-*` skills for project-specific workflows (changelog, migrations, API integration scripts). Don't put project-specific logic in `feel-*` skills.
@@ -93,3 +94,26 @@ Honesty about what's tested versus designed:
 - **Multiple agents / mixed tools.** Covered by §3 (Agent bindings) — bindings differ, the text layer is shared.
 
 When a project crosses the envelope, treat the first month as an experiment and feed what breaks back into this section.
+
+---
+
+## 5. Framework upgrades & safe migration
+
+Upgrading the FEEL framework specification and tooling (`feel_version: "1.5" -> "1.6"`) is designed to produce **zero doc churn**. Adopters can upgrade framework capabilities without touching existing docs.
+
+### Decoupled clocks
+1. **Framework Spec & Tools (`feel_version`)**: Tracks FEEL operating system capabilities and CLI tools (e.g. `"1.6"`).
+2. **Project Doc Revision (`doc_revision`)**: Local ordering counter per doc; upgrading FEEL **never** bumps doc revisions.
+3. **Product App Version (`app_version`)**: Project release stream; completely independent of FEEL framework upgrades.
+
+### Upgrading an existing project
+Run the installer with `--upgrade`:
+```bash
+node /path/to/feel/tools/install.mjs [target-dir] --upgrade
+```
+
+### What `--upgrade` does
+- **Overwrites framework core**: updates `docs/conventions/feel.md`, `docs/conventions/feel-adoption.md`, `.claude/commands/feel-*.md`, `tools/feel/*.mjs`, and `.feel/LICENSE`.
+- **Smart config merge**: updates the `FRAMEWORK SCHEMA` sections in `docs/feel.config.yaml` while preserving all `PROJECT DATA` (`audiences`, `docs`, `relations`, `comparison_groups`).
+- **Updates lockfile**: records the new `feel_version` and `upgraded_at` timestamp in `.feel/feel.lock`.
+- **Preserves project state**: project docs, `docs/history/decisions.md`, custom skills, and `CLAUDE.md` custom rules are strictly untouched.

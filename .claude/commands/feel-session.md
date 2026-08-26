@@ -17,10 +17,11 @@ Check these capabilities without treating a missing one as an error:
 3. **Planning:** Does `docs/feel.config.yaml` name an external tracker? Is there a
    `docs/roadmap.md`, another registered `role: plan` doc, or an obvious status doc?
 
-## 2. Orient from version control when available
+## 2. Orient from version control & route changed files
 
 - **Git with history:** read at most the last 10 commits plus concise status. This
   is the primary source for the last change and uncommitted work.
+- **Diff doc routing:** run `node tools/feel/route-diff.mjs` when modified files exist to output the exact docs required for review before modifying code.
 - **Git worktree without commits:** read concise status including untracked files.
   Report "no commits yet"; do not fail.
 - **No git/worktree:** inspect the current session's touched paths and a short list

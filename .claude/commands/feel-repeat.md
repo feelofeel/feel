@@ -217,25 +217,20 @@ For each finding, emit a structured entry:
                  | verify-intentional | within-doc | heading-warning | heading-split
                  | size-warning | size-split | split-recommended
                  | skill-duplicate | skill-dangling-ref | skill-no-contract
-                  | malformed-head | missing-head-field | invalid-vocabulary
-                  | publication-invalid | mixed-reader-mode
-                  | skill-portability-leak | skill-orphan
-  Evidence       : <specific metadata — versions, dates, heading counts, char counts>
-  Action         : <one of the five actions below>
+                 | malformed-head | missing-head-field | invalid-vocabulary
+                 | publication-invalid | mixed-reader-mode
+                 | skill-portability-leak | skill-orphan | unlinked-coupling
+  Evidence       : <specific metadata — versions, dates, heading counts, char counts, co-change %>
+  Action         : <one of the recommended actions below>
 ```
 
 **Recommended actions:**
 
-1. **add-relation** — two docs share a comparison group and same/overlapping
-   audience, but no `source_of`/`derived_from` is declared. Add the pair to
-   `feel.config.yaml` relations, then run `/feel-doc` on both docs.
+1. **add-relation** — two docs share a comparison group or exhibit high git co-change coupling (>30%), but no `source_of`/`derived_from` is declared. Add the pair to `feel.config.yaml` relations, then run `/feel-doc` on both docs.
 
-2. **consolidate** — same audience, overlapping `guards`, no declared relation.
-   Move the content to one doc; make the other a derived stub or remove the
-   duplication. Run `/feel-doc` on both.
+2. **consolidate** — same audience, overlapping `guards`, no declared relation. Move the content to one doc; make the other a derived stub or remove the duplication. Run `/feel-doc` on both.
 
-3. **update-derived** — a derived doc's `app_version` or `updated` lags its source.
-   Run `/feel-doc` on the derived doc; sync its body; bump its head.
+3. **update-derived** — a derived doc's `app_version` or `updated` lags its source. Run `/feel-doc` on the derived doc; sync its body; bump its head.
 
 4. **verify-intentional** — overlap exists and a relation IS declared, but the
    config's `intent` string for this pair is missing or vague. No immediate action

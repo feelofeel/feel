@@ -2,7 +2,7 @@
   "name": "@feelofeel/feel",
   "version": "0.2.0",
   "description": "FEEL — Documentation operating system for projects",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "repository": {
     "type": "git",

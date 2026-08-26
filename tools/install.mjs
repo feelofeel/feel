@@ -9,6 +9,7 @@
  *   --dry-run   show what would happen, don't write files
  *   --yes       skip interactive prompts (use safe defaults)
  *   --bench     benchmark mode: implies --yes, prints timing, writes session brief
+ *   --upgrade   replace FEEL-owned core files while preserving project data
  *
  * What it does (all mechanical, no AI, $0):
  *   Phase 1  Copy FEEL core files into target (feel.md, skills, templates)
@@ -42,6 +43,8 @@ const ADOPTION_FILE = join(FEEL_DIR, 'docs', 'conventions', 'feel-adoption.md')
 const CFG_FILE     = join(FEEL_DIR, 'templates', 'feel.config.yaml')
 const SKILLS_DIR   = join(FEEL_DIR, '.claude', 'commands')
 const HEALTH_TOOL  = join(FEEL_DIR, 'tools', 'feel', 'health.mjs')
+const ROUTE_DIFF_TOOL = join(FEEL_DIR, 'tools', 'feel', 'route-diff.mjs')
+const LICENSE_FILE = join(FEEL_DIR, 'LICENSE')
 const TMPL_DIR   = join(FEEL_DIR, 'templates')
 
 const CORE_SKILLS = ['feel-doc', 'feel-decision', 'feel-repeat', 'feel-session', 'feel-health']
@@ -58,10 +61,11 @@ function parseArgs() {
     if (a.startsWith('--')) flags.add(a.slice(2))
     else if (!targetDir) targetDir = resolve(a)
   }
-  const bench  = flags.has('bench')
-  const yes    = flags.has('yes') || bench
-  const dryRun = flags.has('dry-run')
-  return { targetDir: targetDir || process.cwd(), dryRun, yes, bench }
+  const bench   = flags.has('bench')
+  const yes     = flags.has('yes') || bench
+  const dryRun  = flags.has('dry-run')
+  const upgrade = flags.has('upgrade')
+  return { targetDir: targetDir || process.cwd(), dryRun, yes, bench, upgrade }
 }
 
 // ── terminal I/O ──────────────────────────────────────────────────
@@ -179,6 +183,7 @@ function copyFeelCore(targetDir, dryRun) {
 
   // deterministic helper used by feel-health and feel-repeat size checks
   tryFile(HEALTH_TOOL, join(targetDir, 'tools', 'feel', 'health.mjs'), 'tools/feel/health.mjs')
+  tryFile(ROUTE_DIFF_TOOL, join(targetDir, 'tools', 'feel', 'route-diff.mjs'), 'tools/feel/route-diff.mjs')
 
   // feel.config.yaml (template — user must replace PROJECT DATA)
   tryFile(CFG_FILE, join(targetDir, 'docs', 'feel.config.yaml'), 'docs/feel.config.yaml (template)')
@@ -186,6 +191,9 @@ function copyFeelCore(targetDir, dryRun) {
   // skeleton docs
   tryFile(join(TMPL_DIR, 'decisions.md'), join(targetDir, 'docs', 'history', 'decisions.md'), 'docs/history/decisions.md')
   tryFile(join(TMPL_DIR, 'docs-index.md'), join(targetDir, 'docs', 'index.md'), 'docs/index.md')
+
+  // Preserve FEEL's license notice without changing the host project's license.
+  tryFile(LICENSE_FILE, join(targetDir, '.feel', 'LICENSE'), '.feel/LICENSE')
 
   // Version pin for future drift checks. Version control is optional.
   const lockDest = join(targetDir, '.feel', 'feel.lock')
@@ -206,6 +214,82 @@ function copyFeelCore(targetDir, dryRun) {
   }
 
   return { copied, skipped }
+}
+
+// ── upgrade mode: replace core files non-destructively ───────────
+
+function upgradeFeelCore(targetDir, dryRun) {
+  const updated = [], skipped = []
+  const spec = existsSync(SPEC_FILE) ? read(SPEC_FILE) : ''
+  const feelVersion = spec.match(/^feel_version:\s*["']?([^"'\s]+)["']?/m)?.[1] || 'unknown'
+
+  const overwriteFile = (src, dest, label) => {
+    if (!existsSync(src)) { warn(`source missing: ${src}`); return }
+    safeCopy(src, dest, dryRun)
+    updated.push(label)
+  }
+
+  // Update spec and adoption guide
+  overwriteFile(SPEC_FILE, join(targetDir, 'docs', 'conventions', 'feel.md'), 'docs/conventions/feel.md')
+  overwriteFile(ADOPTION_FILE, join(targetDir, 'docs', 'conventions', 'feel-adoption.md'), 'docs/conventions/feel-adoption.md')
+
+  // Update core skills
+  const cmdDir = join(targetDir, '.claude', 'commands')
+  ensureDir(cmdDir, dryRun)
+  for (const s of CORE_SKILLS) {
+    overwriteFile(join(SKILLS_DIR, `${s}.md`), join(cmdDir, `${s}.md`), `.claude/commands/${s}.md`)
+  }
+
+  // Update tools
+  overwriteFile(HEALTH_TOOL, join(targetDir, 'tools', 'feel', 'health.mjs'), 'tools/feel/health.mjs')
+  overwriteFile(ROUTE_DIFF_TOOL, join(targetDir, 'tools', 'feel', 'route-diff.mjs'), 'tools/feel/route-diff.mjs')
+  overwriteFile(LICENSE_FILE, join(targetDir, '.feel', 'LICENSE'), '.feel/LICENSE')
+
+  // Merge feel.config.yaml framework schema (preserving project data)
+  const cfgDest = join(targetDir, 'docs', 'feel.config.yaml')
+  if (existsSync(cfgDest) && existsSync(CFG_FILE)) {
+    const existingCfg = read(cfgDest)
+    const tmplCfg = read(CFG_FILE)
+    const schemaMarker = '# FRAMEWORK SCHEMA'
+    // The explanatory header also names FRAMEWORK SCHEMA. The final occurrence
+    // is the actual section boundary that separates project data from FEEL data.
+    const schemaIdxExisting = existingCfg.lastIndexOf(schemaMarker)
+    const schemaIdxTmpl = tmplCfg.lastIndexOf(schemaMarker)
+
+    if (schemaIdxTmpl !== -1) {
+      const frameworkSchema = tmplCfg.slice(schemaIdxTmpl)
+      let mergedCfg = ''
+      if (schemaIdxExisting !== -1) {
+        mergedCfg = existingCfg.slice(0, schemaIdxExisting) + frameworkSchema
+      } else {
+        mergedCfg = existingCfg.trimEnd() + '\n\n' + frameworkSchema
+      }
+      write(cfgDest, mergedCfg, dryRun)
+      updated.push('docs/feel.config.yaml (framework schema merged)')
+    }
+  } else if (!existsSync(cfgDest)) {
+    safeCopy(CFG_FILE, cfgDest, dryRun)
+    updated.push('docs/feel.config.yaml (template)')
+  }
+
+  // Update lockfile
+  const lockDest = join(targetDir, '.feel', 'feel.lock')
+  const existingLock = existsSync(lockDest) ? read(lockDest) : ''
+  const installedAt = existingLock.match(/^installed_at:\s*(.+)$/m)?.[1] || today()
+  const adoptionLayer = existingLock.match(/^adoption_layer:\s*(.+)$/m)?.[1] || 'undecided'
+
+  write(lockDest, [
+    'framework: FEEL',
+    `feel_version: "${feelVersion}"`,
+    'source: https://github.com/feelofeel/feel',
+    `installed_at: ${installedAt}`,
+    `upgraded_at: ${today()}`,
+    `adoption_layer: ${adoptionLayer}`,
+    '',
+  ].join('\n'), dryRun)
+  updated.push('.feel/feel.lock')
+
+  return { updated, skipped, feelVersion }
 }
 
 // ── phase 2: CLAUDE.md ────────────────────────────────────────────
@@ -394,7 +478,32 @@ function writeSessionBrief(targetDir, { core, heads, claudeMd, elapsed, dryRun }
 // ── main ──────────────────────────────────────────────────────────
 
 async function main() {
-  const { targetDir, dryRun, yes, bench } = parseArgs()
+  const { targetDir, dryRun, yes, bench, upgrade } = parseArgs()
+
+  if (upgrade) {
+    log(`\nfeel-upgrade${dryRun ? '  (dry run — no files written)' : ''}`)
+    log(`target: ${targetDir}`)
+
+    if (!existsSync(targetDir)) {
+      log(`error: target directory does not exist`)
+      process.exit(1)
+    }
+
+    step('1/1  Upgrading FEEL core files')
+    const res = upgradeFeelCore(targetDir, dryRun)
+    res.updated.forEach(ok)
+    res.skipped.forEach(skip)
+
+    const elapsed = (Date.now() - START_MS) / 1000
+    log('\n' + '─'.repeat(52))
+    log(`feel-upgrade complete in ${elapsed.toFixed(1)}s (upgraded to ${res.feelVersion})`)
+    log(`Zero-churn upgrade: project docs, doc_revisions, and custom rules preserved.`)
+    log('─'.repeat(52))
+    log()
+
+    rl.close()
+    return
+  }
 
   log(`\nfeel-install${dryRun ? '  (dry run — no files written)' : ''}`)
   log(`target: ${targetDir}`)

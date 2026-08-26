@@ -3,9 +3,9 @@ title: FEEL — Documentation Operating System
 id: feel
 role: convention
 status: canonical
-doc_revision: 13
-feel_version: "1.5"
-updated: 2026-08-03
+doc_revision: 14
+feel_version: "1.6"
+updated: 2026-08-14
 source_of: [feel-adoption]
 derived_from: []
 toc:
@@ -241,9 +241,9 @@ FEEL ships as skills (`.claude/commands/`). The naming line is the reusability b
 - **`feel-*` — framework-generic, portable to any project.** The active core is five skills:
   - `feel-doc` — create or update a doc to the FEEL standard: refresh revision/date, optional stream and reader/delivery metadata, relation symmetry, and the canonical super-index.
   - `feel-decision` — the sole writer of `decisions.md`; append works everywhere, while pruning requires durable history (§6).
-  - `feel-repeat` — doc **and skill** network health check: detects malformed or inconsistent heads, cross-doc staleness, missing relations, mixed reader modes, repetition, size drift, and skill-layer drift. Run after any doc edit (`--diff`) or periodically as a full-graph scan.
-  - `feel-session` — capability-aware session brief: prefer git/history, then degrade to filesystem state and optional local planning/release pointers in ≤20 lines.
-  - `feel-health` — the **success gauge**: doc/skill token-footprint and head-cost dashboard over `tools/feel/health.mjs`. With `feel-repeat` it answers "is FEEL set up right and still light?" — `feel-repeat` audits structural honesty; `feel-health` audits weight and deterministic head validity.
+  - `feel-repeat` — doc **and skill** network health check: detects malformed or inconsistent heads, cross-doc staleness, missing relations, mixed reader modes, repetition, size drift, unlinked git co-change coupling, and skill-layer drift. Run after any doc edit (`--diff`) or periodically as a full-graph scan.
+  - `feel-session` — capability-aware session brief: prefer git/history (with `tools/feel/route-diff.mjs` for code-to-doc routing), then degrade to filesystem state and optional local planning/release pointers in ≤20 lines.
+  - `feel-health` — the **success gauge**: doc/skill token-footprint and 1–10 composite Doc Health Score dashboard over `tools/feel/health.mjs` (measures head validity, relation symmetry, catalog coverage, structural economy, and token footprint). With `feel-repeat` it answers "is FEEL set up right and still light?" — `feel-repeat` audits structural honesty; `feel-health` audits weight and deterministic biomarker health.
 - **`<project>-*` — project-specific, stay with the project:** e.g. `<project>-changelog`, `<project>-migration` (versioning, schema changes, API integration).
 
 **The extended set is archived, not deleted.** Optional `feel-*` skills live in `.claude/skills-archive/` — copy one into `.claude/commands/` to activate it. Each adds context cost, so activate only what a project earns.
@@ -266,14 +266,14 @@ This condition is **absent for code files:**
 
 **The heuristic:** apply FEEL heads wherever described and describer can drift independently. Don't apply them where structural enforcement already guarantees consistency.
 
-For code→doc traceability, prefer a central router (CLAUDE.md's change-type table) over per-file concept tags. One router update reaches every file in a module; distributed headers contradict each other silently and give no reverse direction.
+For code→doc traceability, prefer a central router (CLAUDE.md's change-type table and `tools/feel/route-diff.mjs`) over per-file concept tags. One router update reaches every file in a module; distributed headers contradict each other silently and give no reverse direction.
 
 ---
 
 ## 10. Quick-reference card
 
 ```
-Starting a change?           → canonical super-index router first
+Starting a change?           → canonical super-index router first (or tools/feel/route-diff.mjs)
 Reading any doc?             → consume YAML through closing ---; then honor head_lines
 Reading a derived doc?       → compare source stream/date/revision before its body
 Classifying an article?      → action/cognition × acquisition/application (§1)
@@ -284,6 +284,9 @@ Version control available?   → prefer status/history/diff as strongest evidenc
 No version control?          → use filesystem/session evidence; label uncertainty
 Non-obvious decision?        → /feel-decision (append works without git)
 Pruning decisions?           → require tracked history or immutable archive
+Doc health & biomarkers?     → /feel-health (node tools/feel/health.mjs --score)
+Git co-change coupling?      → node tools/feel/health.mjs --coupling
+Upgrading FEEL framework?    → node tools/install.mjs --upgrade (zero doc churn)
 Release stream exists?       → use its project-specific changelog/release routine
 ```
 

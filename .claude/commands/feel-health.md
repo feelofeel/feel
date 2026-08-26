@@ -16,7 +16,9 @@ interpret it; do **not** re-read the files it measured.
 ## 1. Run it
 
 ```bash
-node tools/feel/health.mjs            # full dashboard (default)
+node tools/feel/health.mjs            # full dashboard with composite score (default)
+node tools/feel/health.mjs --score    # 1–10 composite Doc Health Score biomarkers only
+node tools/feel/health.mjs --coupling # Git co-change coupling analysis only
 node tools/feel/health.mjs --roles    # per-role budget table only
 node tools/feel/health.mjs --outliers # outlier docs only
 node tools/feel/health.mjs --sizes    # per-doc size table (chars/tokens/headings/flags)
@@ -24,18 +26,25 @@ node tools/feel/health.mjs --heads    # complete-head lines/tokens/validation fi
 node tools/feel/health.mjs --json     # machine-readable, for chaining
 ```
 
-Pass the matching flag through from `$ARGUMENTS` (`--roles`, `--outliers`,
+Pass the matching flag through from `$ARGUMENTS` (`--score`, `--coupling`, `--roles`, `--outliers`,
 `--sizes`, `--heads`); empty → full dashboard. `--session` is handled by the skill in step 3,
 not by the script.
 
 It reads `docs/feel.config.yaml` (registry, `roles`, `head_count`), stats every
 doc and skill, parses frontmatter through the closing delimiter, joins per-role
-budgets, and flags body or head outliers.
+budgets, and calculates the 1–10 composite Doc Health Score across 5 weighted biomarkers:
+1. *Head Validity & Delimiters (25%)*
+2. *Relation Symmetry & Graph Integrity (25%)*
+3. *Catalog & Index Coverage (20%)*
+4. *Structural Economy & TOC (15%)*
+5. *Token & Size Economy (15%)*
 
 ## 2. Interpret the output
 
 The script prints the numbers; your job is the one-paragraph read on them:
 
+- **Doc Health Score & Grade** — 1–10 score (A+: 9.5+, A: 8.5+, B+: 7.5+, B: 6.5+, C+: 5.5+, C: 4.5+, D: 3.5+, F below 3.5). Identifies structural and relational health at a glance.
+- **Git Co-Change Coupling** (`--coupling`) — identifies files frequently changed together (>30% co-commit rate) that lack declared relations in doc frontmatter.
 - **Session floor** is paid every session (CLAUDE.md + always-loaded skill
   descriptions + harness). If it's climbing, the super-index or skill descriptions
   are the lever.
