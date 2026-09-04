@@ -117,6 +117,12 @@ const roles = parseItems(topBlock(configLines, 'roles'));
 const thresholds = parseHeadCount(configLines);
 const vocabularies = parseSimpleMap(topBlock(configLines, 'vocabularies'));
 const publications = parseItems(topBlock(configLines, 'publications'));
+const configuredSuperIndex = registry.find((doc) => doc.id === 'super-index')?.path;
+const superIndexPath = configuredSuperIndex
+  || (existsSync(join(root, 'CLAUDE.md')) ? 'CLAUDE.md' : 'AGENTS.md');
+const superIndexText = superIndexPath && existsSync(join(root, superIndexPath))
+  ? readFileSync(join(root, superIndexPath), 'utf8')
+  : '';
 const requiredHeadFields = ['title', 'id', 'role', 'status', 'doc_revision', 'updated', 'source_of', 'derived_from'];
 const docMetrics = registry.map((doc) => {
   const absolute = join(root, doc.path);
@@ -220,9 +226,9 @@ const outliers = docMetrics.filter((doc) => {
       : 'structural',
 }));
 
-const claudeTokens = existsSync(join(root, 'CLAUDE.md')) ? tokenEstimate(read('CLAUDE.md').length) : 0;
+const superIndexTokens = tokenEstimate(superIndexText.length);
 const descriptionTokens = skillMetrics.reduce((sum, skill) => sum + tokenEstimate(skill.description.length), 0);
-const sessionFloor = 2000 + claudeTokens + descriptionTokens;
+const sessionFloor = 2000 + superIndexTokens + descriptionTokens;
 
 // ── Git co-change coupling analysis (Improvement B) ──────────────
 
@@ -374,12 +380,10 @@ function computeHealthScore(docMetricsArr, registryById) {
 
   // Category 3: Index & Catalog Coverage (20%)
   // Check if super-index exists and references registered docs
-  const claudeExists = existsSync(join(root, 'CLAUDE.md'));
-  const claudeText = claudeExists ? readFileSync(join(root, 'CLAUDE.md'), 'utf8') : '';
   let indexedDocs = 0;
   for (const doc of docMetricsArr) {
     if (doc.id === 'super-index') continue;
-    if (claudeText.includes(doc.id) || claudeText.includes(doc.path)) indexedDocs++;
+    if (superIndexText.includes(doc.id) || superIndexText.includes(doc.path)) indexedDocs++;
   }
   const indexCoverageRatio = totalDocs <= 1 ? 1.0 : indexedDocs / (totalDocs - 1);
 

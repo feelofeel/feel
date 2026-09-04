@@ -139,6 +139,35 @@ test('validates complete heads and configured Diátaxis publication rules', () =
   }
 });
 
+test('scores catalog coverage from the configured canonical super-index', () => {
+  const target = fixture();
+  try {
+    install(target);
+    const configPath = join(target, 'docs', 'feel.config.yaml');
+    writeFileSync(
+      configPath,
+      readFileSync(configPath, 'utf8').replace('path: CLAUDE.md', 'path: AGENTS.md'),
+      'utf8',
+    );
+    writeFileSync(
+      join(target, 'AGENTS.md'),
+      readFileSync(join(target, 'AGENTS.md'), 'utf8') + '\nCatalog: feel decisions\n',
+      'utf8',
+    );
+    writeFileSync(join(target, 'CLAUDE.md'), 'AGENTS.md is canonical.\n', 'utf8');
+
+    const health = JSON.parse(execFileSync(
+      process.execPath,
+      [join(target, 'tools', 'feel', 'health.mjs'), '--json'],
+      { cwd: target, encoding: 'utf8' },
+    ));
+    assert.equal(health.healthScore.categories.indexCoverage.ratio, 100);
+    assert.ok(health.sessionFloor > 2000);
+  } finally {
+    rmSync(target, { recursive: true, force: true });
+  }
+});
+
 test('uses a package version as an optional project stream', () => {
   const target = fixture({ version: '2.3.4' });
   try {
